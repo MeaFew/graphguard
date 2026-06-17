@@ -1,0 +1,26 @@
+[build-system]
+requires = ["setuptools>=68.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "graphguard"
+version = "1.0.0"
+requires-python = ">=3.11"
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "N", "UP"]
+# Ignored rules (see Makefile/CI history):
+#   E501  line too long        — handled by `ruff format`
+#   E402  import not at top     — scripts inject sys.path before late imports
+#   F401  unused import         — re-exports / __init__ convenience imports
+#   N803  arg name lowercase    — domain naming (e.g. mixedCase from data schema)
+#   N806  var name uppercase    — constants derived from runtime config
+ignore = ["E501", "E402", "F401", "N803", "N806", "N812"]
+# N812: `torch.nn.functional as F` is the canonical PyTorch convention.
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

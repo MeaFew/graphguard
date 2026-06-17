@@ -1,0 +1,25 @@
+name: CI
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+    branches: [main, master]
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install ruff
+      - run: ruff check scripts/ tests/ dashboard/
+      - run: ruff format --check scripts/ tests/ dashboard/
+
+  # NOTE: a `test` job is intentionally omitted for now. The test suite
+  # (tests/test_graph.py) requires (a) a pre-built data/processed/graph_data.pt
+  # artifact and (b) the CUDA-tagged PyTorch + torch-scatter/torch-sparse wheels
+  # pinned in requirements.txt, neither of which is available in a stock
+  # ubuntu-latest runner. Run `make test` locally after `make build-graph`.
