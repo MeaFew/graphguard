@@ -1,0 +1,35 @@
+# PyTorch wheels with CUDA 12.1 (RTX 4060 Laptop)
+--extra-index-url https://download.pytorch.org/whl/cu121
+
+# Use the local '+cu121' version tag to request the CUDA wheels
+torch==2.5.1+cu121
+torchvision==0.20.1+cu121
+torchaudio==2.5.1+cu121
+
+# Graph Neural Networks
+torch-geometric>=2.4.0
+-f https://data.pyg.org/whl/torch-2.5.0+cu121.html
+torch-scatter
+torch-sparse
+
+# Traditional ML
+xgboost>=2.0.0
+scikit-learn>=1.3.0
+
+# Data and visualization
+numpy>=1.24.0
+pandas>=2.0.0
+matplotlib>=3.7.0
+seaborn>=0.12.0
+
+# Dashboard
+streamlit>=1.28.0
+plotly>=5.18.0
+
+# Utilities
+tqdm>=4.65.0
+joblib>=1.3.0
+
+# Development
+pytest>=7.4.0
+ruff>=0.1.0
