@@ -265,12 +265,16 @@ def train(model_name: str, force: bool = False):
         f"F1={test_metrics['f1']:.4f}"
     )
 
-    # Append metrics to json
+    # Append metrics to json (merge, don't overwrite — same pattern as
+    # train_baseline.py and evaluate.py).
     metrics_file = METRICS_JSON
     metrics_file.parent.mkdir(parents=True, exist_ok=True)
-    existing = {"baselines": [], "gnn": []}
+    existing = {}
     if metrics_file.exists():
-        existing = json.loads(metrics_file.read_text())
+        try:
+            existing = json.loads(metrics_file.read_text())
+        except (json.JSONDecodeError, OSError):
+            existing = {}
     existing.setdefault("gnn", []).append(
         {**test_metrics, "model": model_name, "split": "test"}
     )
