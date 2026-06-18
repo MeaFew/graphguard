@@ -1,5 +1,11 @@
 # graphguard
 
+[![CI](https://github.com/MeaFew/graphguard/workflows/CI/badge.svg)](https://github.com/MeaFew/graphguard/actions)
+![Python](https://img.shields.io/badge/python-3.11%2B-blue?logo=python&logoColor=white)
+![License](https://img.shields.io/badge/license-MIT-green)
+
+> **主仓**: [Gitee](https://gitee.com/zeroonei1/graphguard) | **镜像**: [GitHub](https://github.com/MeaFew/graphguard)
+
 Graph Neural Network for illicit transaction detection on the Bitcoin transaction graph.
 
 ## Overview
@@ -102,6 +108,20 @@ make dashboard
 - Streamlit, Plotly
 - pytest, ruff
 
+
+## Related Projects
+
+| Project | GitHub | Description |
+|---------|--------|-------------|
+| E-commerce User Behavior Analytics | [MeaFew/shoplytics](https://github.com/MeaFew/shoplytics) | 29M real user behavior records, 10 analytical modules |
+| Credit Risk Scoring | [MeaFew/riskscore](https://github.com/MeaFew/riskscore) | WOE/IV + XGBoost/LightGBM + SHAP |
+| Multivariate Time-Series Forecasting | [MeaFew/foresight](https://github.com/MeaFew/foresight) | LSTM / Transformer / XGBoost comparison |
+| Marketing Attribution & Budget Optimization | [MeaFew/attributor](https://github.com/MeaFew/attributor) | MMM + multi-touch attribution + SLSQP budget optimization |
+
 ## License
+
+MIT. The Elliptic dataset is subject to its own Kaggle terms of use.
+
+
 
 MIT
