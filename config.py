@@ -27,6 +27,7 @@ XGB_MODEL_PATH = MODELS_DIR / "xgboost_baseline.joblib"
 GCN_MODEL_PATH = MODELS_DIR / "gcn_model.pt"
 SAGE_MODEL_PATH = MODELS_DIR / "sage_model.pt"
 GAT_MODEL_PATH = MODELS_DIR / "gat_model.pt"
+GIN_MODEL_PATH = MODELS_DIR / "gin_model.pt"
 
 # ── Reports ───────────────────────────────────────────────────────
 METRICS_JSON = REPORTS_DIR / "metrics.json"
@@ -60,5 +61,9 @@ NUM_NEIGHBORS = [15, 10]  # 2-hop sampling sizes for NeighborLoader
 # Class weights for imbalance (illicit vs licit)
 POS_WEIGHT = 10.0
 
-# Device
-DEVICE = "cuda"  # fallback handled in scripts if CUDA unavailable
+# Device — auto-detect so the config value is honest on a CPU-only machine
+# (scripts already did `torch.device(DEVICE if cuda else "cpu")`; centralizing
+# it here removes the misleading "cuda" literal on non-GPU hosts).
+import torch as _torch
+
+DEVICE = "cuda" if _torch.cuda.is_available() else "cpu"

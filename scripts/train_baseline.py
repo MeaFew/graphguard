@@ -86,8 +86,14 @@ def train_mlp(x, y, train_mask, val_mask):
         random_state=RANDOM_STATE,
         verbose=False,
     )
-    # Use train + val for final fit; val is used inside via early_stopping
-    model.fit(x[train_mask | val_mask], y[train_mask | val_mask])
+    # Fit on TRAIN rows ONLY — same protocol as the XGBoost baseline below,
+    # which uses train_mask for fit and val_mask for early-stopping selection.
+    # Earlier this fit on train|val, giving the MLP an unfair edge (it saw the
+    # validation split during training while XGBoost did not), which inflated
+    # the "MLP beats GNN" headline. sklearn's internal validation_fraction
+    # carves the early-stopping holdout from train_mask, mirroring XGBoost's
+    # eval_set behavior.
+    model.fit(x[train_mask], y[train_mask])
     joblib.dump(model, MLP_MODEL_PATH)
     print(f"  Saved: {MLP_MODEL_PATH}")
     return model

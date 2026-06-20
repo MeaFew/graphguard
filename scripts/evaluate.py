@@ -27,6 +27,7 @@ try:
         DROPOUT,
         GAT_MODEL_PATH,
         GCN_MODEL_PATH,
+        GIN_MODEL_PATH,
         GRAPH_DATA_PT,
         HIDDEN_DIM,
         METRICS_JSON,
@@ -48,6 +49,7 @@ except ImportError:
         DROPOUT,
         GAT_MODEL_PATH,
         GCN_MODEL_PATH,
+        GIN_MODEL_PATH,
         GRAPH_DATA_PT,
         HIDDEN_DIM,
         METRICS_JSON,
@@ -62,7 +64,7 @@ except ImportError:
     )
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from train_gnn import GAT, GCN, GraphSAGE
+from train_gnn import GAT, GCN, GIN, GraphSAGE
 
 
 def load_data():
@@ -102,6 +104,11 @@ def evaluate_gnn(data, model_class, model_path, device):
     )
     model.eval()
 
+    # Time-causal test loader: the test split is the LATEST block, so its
+    # subgraph (edges with both endpoints <= the global max timestep) equals
+    # the full graph — test roots can only ever look backward in time anyway.
+    # Using the full graph here is therefore leakage-free for the test split,
+    # while the train/val loaders in train_gnn.py use trimmed subgraphs.
     test_loader = NeighborLoader(
         data,
         num_neighbors=NUM_NEIGHBORS,
@@ -189,6 +196,7 @@ def main():
         (GCN, GCN_MODEL_PATH, "gcn"),
         (GraphSAGE, SAGE_MODEL_PATH, "sage"),
         (GAT, GAT_MODEL_PATH, "gat"),
+        (GIN, GIN_MODEL_PATH, "gin"),
     ]
     for model_class, model_path, _ in gnn_configs:
         r = evaluate_gnn(data, model_class, model_path, device)
