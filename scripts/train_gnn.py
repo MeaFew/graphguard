@@ -126,9 +126,7 @@ class GraphSAGE(GNNModel):
 
 
 class GAT(GNNModel):
-    def __init__(
-        self, in_channels: int, hidden_channels: int, dropout: float, heads: int = 4
-    ):
+    def __init__(self, in_channels: int, hidden_channels: int, dropout: float, heads: int = 4):
         # GAT needs conv-level attention dropout + multi-head concatenation,
         # so build the convs directly and only reuse the shared forward().
         torch.nn.Module.__init__(self)
@@ -218,9 +216,7 @@ def train(model_name: str, force: bool = False):
 
     model_path = MODEL_PATHS[model_name]
     if model_path.exists() and not force:
-        print(
-            f"{model_name.upper()} model already exists at {model_path}. Use --force to retrain."
-        )
+        print(f"{model_name.upper()} model already exists at {model_path}. Use --force to retrain.")
         return
 
     device = torch.device(DEVICE if torch.cuda.is_available() else "cpu")
@@ -302,9 +298,7 @@ def train(model_name: str, force: bool = False):
         dropout=DROPOUT,
     ).to(device)
 
-    optimizer = torch.optim.Adam(
-        model.parameters(), lr=LEARNING_RATE, weight_decay=WEIGHT_DECAY
-    )
+    optimizer = torch.optim.Adam(model.parameters(), lr=LEARNING_RATE, weight_decay=WEIGHT_DECAY)
     pos_weight = torch.tensor([POS_WEIGHT], device=device)
     criterion = torch.nn.BCEWithLogitsLoss(pos_weight=pos_weight)
 
@@ -386,9 +380,7 @@ def main():
         default="all",
         help="GNN model to train",
     )
-    parser.add_argument(
-        "--force", action="store_true", help="Retrain even if model exists"
-    )
+    parser.add_argument("--force", action="store_true", help="Retrain even if model exists")
     args = parser.parse_args()
 
     if args.model == "all":

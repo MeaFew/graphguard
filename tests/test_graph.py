@@ -14,9 +14,7 @@ from scripts.train_gnn import GAT, GCN, GIN, GraphSAGE
 
 
 def test_graph_data_exists():
-    assert GRAPH_DATA_PT.exists(), (
-        f"{GRAPH_DATA_PT} not found; run scripts/build_graph.py first"
-    )
+    assert GRAPH_DATA_PT.exists(), f"{GRAPH_DATA_PT} not found; run scripts/build_graph.py first"
 
 
 def test_graph_properties():

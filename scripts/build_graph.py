@@ -169,9 +169,7 @@ def build_graph(force: bool = False):
 
 def main():
     parser = argparse.ArgumentParser(description="Build graph from raw Elliptic data")
-    parser.add_argument(
-        "--force", action="store_true", help="Rebuild even if output exists"
-    )
+    parser.add_argument("--force", action="store_true", help="Rebuild even if output exists")
     args = parser.parse_args()
     build_graph(force=args.force)
 

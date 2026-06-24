@@ -168,9 +168,7 @@ def train_both(force: bool = False):
 
 def main():
     parser = argparse.ArgumentParser(description="Train tabular baselines")
-    parser.add_argument(
-        "--force", action="store_true", help="Retrain even if models exist"
-    )
+    parser.add_argument("--force", action="store_true", help="Retrain even if models exist")
     args = parser.parse_args()
     train_both(force=args.force)
 

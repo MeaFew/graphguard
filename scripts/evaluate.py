@@ -99,9 +99,7 @@ def evaluate_gnn(data, model_class, model_path, device):
         hidden_channels=HIDDEN_DIM,
         dropout=DROPOUT,
     ).to(device)
-    model.load_state_dict(
-        torch.load(model_path, weights_only=False, map_location=device)
-    )
+    model.load_state_dict(torch.load(model_path, weights_only=False, map_location=device))
     model.eval()
 
     # Time-causal test loader: the test split is the LATEST block, so its
@@ -129,9 +127,7 @@ def evaluate_gnn(data, model_class, model_path, device):
         all_labels.append(batch.y[root_mask].cpu().numpy())
 
     return {
-        "model": model_class.__name__.lower()
-        .replace("graphsage", "sage")
-        .replace("graph", ""),
+        "model": model_class.__name__.lower().replace("graphsage", "sage").replace("graph", ""),
         "probs": np.concatenate(all_probs),
         "labels": np.concatenate(all_labels),
     }
