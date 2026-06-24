@@ -15,7 +15,13 @@ except ImportError:
 
 
 def download_from_kaggle(output_dir: Path) -> bool:
-    """Attempt to download the Elliptic Data Set from Kaggle."""
+    """Attempt to download the Elliptic Data Set from Kaggle.
+
+    Returns True on success, False on any expected failure (missing
+    ``kagglehub`` dependency, network error, or missing Kaggle credentials).
+    Catches specific exception types so a genuine programming error is not
+    silently swallowed and reported as "download failed".
+    """
     try:
         import kagglehub
 
@@ -26,8 +32,19 @@ def download_from_kaggle(output_dir: Path) -> bool:
         )
         print(f"Downloaded to: {path}")
         return True
-    except Exception as e:
-        print(f"Kaggle download failed: {e}")
+    except ImportError:
+        print("Kaggle download failed: 'kagglehub' is not installed.")
+        print("  Fix: pip install kagglehub  (and configure Kaggle credentials).")
+        return False
+    except (OSError, ConnectionError) as e:
+        # OSError covers network/socket errors raised by the underlying HTTP
+        # client on connection failures.
+        print(f"Kaggle download failed (network): {type(e).__name__}: {e}")
+        return False
+    except RuntimeError as e:
+        # kagglehub raises RuntimeError for credential / HTTP-status problems.
+        print(f"Kaggle download failed (credentials/server): {type(e).__name__}: {e}")
+        print("  Set KAGGLE_USERNAME/KAGGLE_KEY or place ~/.kaggle/kaggle.json.")
         return False
 
 
@@ -46,7 +63,14 @@ def main():
         return
 
     if not download_from_kaggle(output_dir):
-        print("\nFalling back to synthetic graph generation...")
+        # Make the synthetic fallback LOUD and unmissable: any results obtained on
+        # the synthetic graph are not representative of the real Elliptic task,
+        # so a user must not unknowingly train on it.
+        print("\n" + "=" * 72)
+        print("WARNING: REAL DATA NOT AVAILABLE — generating a SYNTHETIC graph.")
+        print("Synthetic results are NOT comparable to the real Elliptic benchmark.")
+        print("Configure Kaggle credentials and re-run to use the real dataset.")
+        print("=" * 72 + "\n")
         from scripts.generate_synthetic_graph import generate_synthetic_data
 
         generate_synthetic_data(output_dir=output_dir)

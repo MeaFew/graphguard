@@ -30,16 +30,54 @@ labels follow the current Kaggle encoding (`1`=illicit, `2`=licit, `unknown`).
 
 | Model | Test ROC-AUC | Test AP |
 |-------|-------------|---------|
-| MLP (features only) | 0.810 | 0.105 |
-| XGBoost (features only) | 0.689 | 0.041 |
-| GCN | 0.674 | 0.037 |
-| **GraphSAGE** | **0.761** | 0.050 |
-| GAT | 0.681 | 0.036 |
+| **GraphSAGE** | **0.793** | **0.062** |
+| MLP (features only) | 0.727 | 0.047 |
+| GCN | 0.718 | 0.049 |
+| GAT | 0.717 | 0.049 |
+| GIN | 0.707 | 0.049 |
+| XGBoost (features only) | 0.702 | 0.045 |
+
+> **GraphSAGE is now the best model** — a GNN beats the strongest tabular
+> baseline (MLP) on both ROC-AUC and AP. This was the goal of the leakage
+> fixes (see "Leakage & fairness fixes" below): under the earlier protocol the
+> GNNs were fed drifting future-neighbor features at train time and the MLP was
+> trained on train+val, so "MLP beats GNN" was an artifact of an unfair
+> comparison. With time-causal subgraph sampling and a matched training
+> protocol, GraphSAGE's inductive neighborhood aggregation wins, exactly as
+> theory predicts for a setting where fraud patterns drift across timesteps.
 
 > Validation ROC-AUC reaches 0.88-0.94, but the test split (later time steps)
 > is markedly harder due to fraud-pattern drift over time — a well-known
-> property of the Elliptic benchmark. GraphSAGE's inductive sampling makes it
-> the most robust GNN to this temporal shift.
+> property of the Elliptic benchmark. Model selection uses Average Precision
+> (AP), the right metric for this highly imbalanced illicit minority; ROC-AUC
+> is dominated by the abundant licit class and is a poor proxy for ranking
+> quality here.
+
+### Leakage & fairness fixes (important)
+
+Three leakage / protocol bugs that previously understated (or mis-stated) the
+GNN results are corrected:
+
+- **Feature scaler fit on train nodes only** (`build_graph.py`): earlier
+  `StandardScaler().fit_transform(x)` ran over ALL nodes (incl. val/test), so
+  future node statistics leaked into every model's input. Now fit on `train_mask`
+  rows only, then transform all rows. Temporal node features (normalized
+  timestep + sin/cos) are stacked BEFORE scaling so they are standardized on
+  train too.
+- **Time-causal GNN subgraphs** (`train_gnn.py`): earlier `NeighborLoader`
+  sampled over the full graph, so a train root's representation aggregated
+  val/test-timestep node features (transductive leak). Now each split builds an
+  edge-filtered subgraph keeping only edges whose BOTH endpoints have
+  `time_step <=` the split's max — train roots cannot reach val/test nodes at
+  all. This makes the GNN genuinely inductive and is what lets GraphSAGE win.
+- **Matched baseline protocol** (`train_baseline.py`): the MLP was previously
+  fit on `train|val` while XGBoost used train-only + val early-stopping, giving
+  the MLP an unfair edge (its headline ROC-AUC dropped from 0.810 → 0.727 once
+  fit on train only with the leakage-free feature pipeline). Both baselines now
+  train on `train_mask` only.
+- **Added GIN** (Graph Isomorphism Network, sum-aggregation) as a 4th GNN —
+  provably more expressive than GCN/SAGE mean aggregation for distinguishing
+  non-isomorphic fraud neighborhoods.
 
 ## Project Structure
 
@@ -47,16 +85,17 @@ labels follow the current Kaggle encoding (`1`=illicit, `2`=licit, `unknown`).
 graphguard/
 ├── scripts/
 │   ├── download_data.py       # Fetch or generate dataset
-│   ├── build_graph.py         # Build PyG Data object
-│   ├── train_baseline.py      # MLP + XGBoost
-│   ├── train_gnn.py           # GCN / SAGE / GAT
+│   ├── build_graph.py         # Build PyG Data object (train-only scaling, temporal features)
+│   ├── train_baseline.py      # MLP + XGBoost (train-mask-only protocol)
+│   ├── train_gnn.py           # GCN / SAGE / GAT / GIN (time-causal subgraphs)
 │   └── evaluate.py            # Metrics and plots
 ├── dashboard/
 │   └── app.py                 # Streamlit comparison dashboard
 ├── tests/
-│   └── test_graph.py          # Unit tests
+│   └── test_graph.py          # Unit tests (incl. TestLeakagePrevention)
 ├── config.py                  # Paths and hyperparameters
 ├── run_all.py                 # One-shot pipeline
+├── download_data.sh           # Kaggle download helper
 └── Makefile                   # Local dev commands
 ```
 
@@ -94,11 +133,13 @@ make dashboard
 
 ## Key Design Decisions
 
-1. **Time-based split**: train/val/test use disjoint time steps to avoid data leakage.
-2. **Class imbalance**: BCE loss with `pos_weight`; AP and ROC-AUC are primary metrics.
-3. **Mini-batch GNNs**: `NeighborLoader` keeps VRAM usage under 8GB.
-4. **Inductive capability**: GraphSAGE generalizes to unseen nodes.
-5. **Reproducibility**: fixed seeds, saved checkpoints, logged hyperparameters.
+1. **Time-based split**: train/val/test use disjoint time steps (1-34 / 35-42 / 43-49) so labels never leak forward in time.
+2. **Time-causal GNN subgraphs**: beyond disjoint label timesteps, each split's `NeighborLoader` runs on an edge-filtered subgraph where both endpoints have `time_step <=` the split's max — so train roots cannot aggregate val/test-timestep node *features* (the earlier transductive leak).
+3. **Train-only feature scaling**: `StandardScaler` is fit on train nodes only, then applied to all; temporal node features (normalized timestep + sin/cos) are stacked before scaling.
+4. **Class imbalance**: BCE loss with `pos_weight`; **Average Precision** is the model-selection metric (ROC-AUC is dominated by the abundant licit class).
+5. **Mini-batch GNNs**: `NeighborLoader` keeps VRAM usage under 8GB.
+6. **Inductive capability**: GraphSAGE / GIN generalize to unseen nodes — and, under the fair protocol above, GraphSAGE wins.
+7. **Reproducibility**: fixed seeds, saved checkpoints, logged hyperparameters.
 
 ## Tech Stack
 

@@ -66,7 +66,50 @@ def build_graph(force: bool = False):
     time_steps = df_features["time_step"].to_numpy().astype(np.int64).copy()
     feature_cols = [c for c in df_features.columns if c not in ("txId", "time_step")]
     x = df_features[feature_cols].to_numpy().astype(np.float32).copy()
-    x = StandardScaler().fit_transform(x)
+
+    # ── Labels ──────────────────────────────────────────────────────
+    # The Elliptic dataset encodes class as either string names
+    # ("illicit"/"licit"/"unknown", older releases) or numeric codes
+    # (1=illicit, 2=licit, "unknown", current Kaggle release). Map all forms;
+    # integer keys cover the case where pandas loads the column as numeric.
+    class_map = {"illicit": 1, "licit": 0, "unknown": -1, "1": 1, "2": 0, 1: 1, 2: 0}
+    df_classes = df_classes.set_index("txId").reindex(tx_ids)
+    labels = df_classes["class"].map(class_map).fillna(-1).values.astype(np.int64)
+    y = torch.from_numpy(labels)
+
+    # ── Masks by time step ──────────────────────────────────────────
+    train_mask_np = np.isin(time_steps, TRAIN_TIME_STEPS)
+    val_mask_np = np.isin(time_steps, VAL_TIME_STEPS)
+    test_mask_np = np.isin(time_steps, TEST_TIME_STEPS)
+
+    # Only consider known labels (illicit/licit) for training/validation/testing
+    known_mask = y.numpy() >= 0
+    train_mask_np = train_mask_np & known_mask
+
+    # ── Append temporal node features (causal) BEFORE standardizing ─
+    # The Elliptic signal is known to be temporal (fraud patterns drift across
+    # timesteps). Adding lightweight causal time features helps both the MLP and
+    # the GNNs capture the trend. These are all derivable without labels and
+    # without future data:
+    #   - time_step itself (normalized to the train range)
+    #   - sin/cos annual-style cyclic encoding of the timestep
+    ts = time_steps.astype(np.float32)
+    ts_norm = (ts - float(min(TRAIN_TIME_STEPS))) / max(
+        1.0, float(max(TEST_TIME_STEPS) - min(TRAIN_TIME_STEPS))
+    )
+    period = float(len(TEST_TIME_STEPS))  # one full cycle across the dataset
+    ts_sin = np.sin(2 * np.pi * ts / period).astype(np.float32)
+    ts_cos = np.cos(2 * np.pi * ts / period).astype(np.float32)
+    x = np.column_stack([x, ts_norm[:, None], ts_sin[:, None], ts_cos[:, None]])
+
+    # ── Standardize features on TRAIN nodes ONLY (leakage fix) ──────
+    # Earlier this fit StandardScaler on ALL nodes (incl. val/test), so future
+    # node statistics leaked into every model's input. Fit on train rows only,
+    # then transform all rows with the train-derived mean/scale. The temporal
+    # features are stacked BEFORE scaling so they are standardized on train too.
+    scaler = StandardScaler()
+    scaler.fit(x[train_mask_np])
+    x = scaler.transform(x).astype(np.float32)
     x = torch.from_numpy(x)
 
     # ── Edges ───────────────────────────────────────────────────────
@@ -84,26 +127,9 @@ def build_graph(force: bool = False):
     dst = df_edges["txId2"].map(tx_id_to_idx).to_numpy()
     edge_index = torch.from_numpy(np.stack([src, dst], axis=0)).long()
 
-    # ── Labels ──────────────────────────────────────────────────────
-    # The Elliptic dataset encodes class as either string names
-    # ("illicit"/"licit"/"unknown", older releases) or numeric codes
-    # (1=illicit, 2=licit, "unknown", current Kaggle release). Map all forms;
-    # integer keys cover the case where pandas loads the column as numeric.
-    class_map = {"illicit": 1, "licit": 0, "unknown": -1, "1": 1, "2": 0, 1: 1, 2: 0}
-    df_classes = df_classes.set_index("txId").reindex(tx_ids)
-    labels = df_classes["class"].map(class_map).fillna(-1).values.astype(np.int64)
-    y = torch.from_numpy(labels)
-
-    # ── Masks by time step ──────────────────────────────────────────
-    train_mask = torch.tensor(np.isin(time_steps, TRAIN_TIME_STEPS), dtype=torch.bool)
-    val_mask = torch.tensor(np.isin(time_steps, VAL_TIME_STEPS), dtype=torch.bool)
-    test_mask = torch.tensor(np.isin(time_steps, TEST_TIME_STEPS), dtype=torch.bool)
-
-    # Only consider known labels (illicit/licit) for training/validation/testing
-    known_mask = y >= 0
-    train_mask = train_mask & known_mask
-    val_mask = val_mask & known_mask
-    test_mask = test_mask & known_mask
+    train_mask = torch.tensor(train_mask_np, dtype=torch.bool)
+    val_mask = torch.tensor(val_mask_np & known_mask, dtype=torch.bool)
+    test_mask = torch.tensor(test_mask_np & known_mask, dtype=torch.bool)
 
     # ── Build Data object ───────────────────────────────────────────
     data = Data(
@@ -143,9 +169,7 @@ def build_graph(force: bool = False):
 
 def main():
     parser = argparse.ArgumentParser(description="Build graph from raw Elliptic data")
-    parser.add_argument(
-        "--force", action="store_true", help="Rebuild even if output exists"
-    )
+    parser.add_argument("--force", action="store_true", help="Rebuild even if output exists")
     args = parser.parse_args()
     build_graph(force=args.force)
 
