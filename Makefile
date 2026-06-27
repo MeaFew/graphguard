@@ -1,4 +1,4 @@
-.PHONY: all setup data baselines gnn evaluate test dashboard clean
+.PHONY: all setup data baselines gnn evaluate test lint format format-check verify dashboard clean
 
 PYTHON := python
 
@@ -38,6 +38,12 @@ format:
 
 format-check:
 	ruff format --check scripts/ tests/ dashboard/
+
+# Full local quality gate (lint + format-check + test). Mirrors the
+# CONTRIBUTING.md instructions; test requires a built graph_data.pt
+# (run `make data` first) and the torch/torch-geometric stack.
+verify: lint format-check test
+	@echo "All quality gates passed"
 
 # ── Dashboard ─────────────────────────────────────────────────────
 dashboard:

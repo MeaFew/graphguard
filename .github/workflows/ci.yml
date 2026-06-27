@@ -18,8 +18,39 @@ jobs:
       - run: ruff check scripts/ tests/ dashboard/
       - run: ruff format --check scripts/ tests/ dashboard/
 
-  # NOTE: a `test` job is intentionally omitted for now. The test suite
-  # (tests/test_graph.py) requires (a) a pre-built data/processed/graph_data.pt
-  # artifact and (b) the CUDA-tagged PyTorch + torch-scatter/torch-sparse wheels
-  # pinned in requirements.txt, neither of which is available in a stock
-  # ubuntu-latest runner. Run `make test` locally after `make build-graph`.
+  test:
+    # Runs the leakage-prevention regression suite + GNN forward-pass tests.
+    #
+    # The local requirements.txt pins CUDA wheels (torch==2.5.1+cu121) plus
+    # torch-scatter/torch-sparse, which a stock ubuntu-latest runner cannot
+    # resolve. That would otherwise leave the project with CI coverage of lint
+    # only — but the whole point of this repo is its anti-leakage engineering,
+    # guarded by tests/test_graph.py. So this job installs CPU-only torch +
+    # torch-geometric (PyG 2.3+ makes torch-scatter/torch-sparse OPTIONAL; the
+    # GCN/SAGE/GAT/GIN conv layers and NeighborLoader used here are pure Python
+    # and run fine without them), then materializes a graph from the synthetic
+    # fallback (no Kaggle credentials needed) and runs pytest.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Cache pip
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/pip
+          key: pip-${{ runner.os }}-cpu-torch-${{ hashFiles('requirements.txt') }}
+          restore-keys: |
+            pip-${{ runner.os }}-cpu-torch-
+      - name: Install CPU torch + torch-geometric (no CUDA / no scatter-sparse)
+        run: |
+          pip install torch==2.5.1 --index-url https://download.pytorch.org/whl/cpu
+          pip install torch-geometric>=2.4.0 numpy pandas scikit-learn pytest
+      - name: Materialize graph from synthetic fallback
+        run: |
+          # download_data.py auto-falls back to the synthetic generator when no
+          # Kaggle credentials are configured, so this works offline in CI.
+          python scripts/download_data.py
+          python scripts/build_graph.py
+      - run: pytest tests/ -v --tb=short

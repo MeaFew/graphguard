@@ -12,11 +12,13 @@ os.environ.setdefault("PYTHONUTF8", "1")
 PYTHON = sys.executable
 
 
-def run(cmd: str, cwd: Path | None = None):
+def run(cmd: list[str], cwd: Path | None = None):
     print(f"\n{'=' * 60}")
-    print(f">>> {cmd}")
+    print(f">>> {' '.join(cmd)}")
     print("=" * 60)
-    result = subprocess.run(cmd, shell=True, cwd=cwd)
+    # cmd is a list; no shell=True — avoids a shell-injection surface and
+    # matches the convention used by the sibling projects' runners.
+    result = subprocess.run(cmd, cwd=cwd)
     if result.returncode != 0:
         print(f"WARNING: Command failed with exit code {result.returncode}")
         return False
@@ -27,12 +29,12 @@ def main():
     here = Path(__file__).resolve().parent
 
     steps = [
-        ("Download / generate data", f"{PYTHON} scripts/download_data.py"),
-        ("Build graph", f"{PYTHON} scripts/build_graph.py"),
-        ("Train baselines", f"{PYTHON} scripts/train_baseline.py"),
-        ("Train GNNs", f"{PYTHON} scripts/train_gnn.py --model all"),
-        ("Evaluate", f"{PYTHON} scripts/evaluate.py"),
-        ("Test", f"{PYTHON} -m pytest tests/ -q"),
+        ("Download / generate data", [PYTHON, "scripts/download_data.py"]),
+        ("Build graph", [PYTHON, "scripts/build_graph.py"]),
+        ("Train baselines", [PYTHON, "scripts/train_baseline.py"]),
+        ("Train GNNs", [PYTHON, "scripts/train_gnn.py", "--model", "all"]),
+        ("Evaluate", [PYTHON, "scripts/evaluate.py"]),
+        ("Test", [PYTHON, "-m", "pytest", "tests/", "-q"]),
     ]
 
     print("GraphGuard — Full Pipeline")
