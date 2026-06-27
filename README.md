@@ -137,9 +137,10 @@ make dashboard
 2. **Time-causal GNN subgraphs**: beyond disjoint label timesteps, each split's `NeighborLoader` runs on an edge-filtered subgraph where both endpoints have `time_step <=` the split's max — so train roots cannot aggregate val/test-timestep node *features* (the earlier transductive leak).
 3. **Train-only feature scaling**: `StandardScaler` is fit on train nodes only, then applied to all; temporal node features (normalized timestep + sin/cos) are stacked before scaling.
 4. **Class imbalance**: BCE loss with `pos_weight`; **Average Precision** is the model-selection metric (ROC-AUC is dominated by the abundant licit class).
-5. **Mini-batch GNNs**: `NeighborLoader` keeps VRAM usage under 8GB.
-6. **Inductive capability**: GraphSAGE / GIN generalize to unseen nodes — and, under the fair protocol above, GraphSAGE wins.
-7. **Reproducibility**: fixed seeds, saved checkpoints, logged hyperparameters.
+5. **Val-tuned F1 threshold**: the F1 decision cutoff is tuned on the **validation** split (the F1-maximizing point of its precision-recall curve) and then applied to the test split — never tuned on test. A hardcoded 0.5 would be misleading because `pos_weight`/`scale_pos_weight` shift the predicted-probability distribution well below 0.5.
+6. **Mini-batch GNNs**: `NeighborLoader` keeps VRAM usage under 8GB.
+7. **Inductive capability**: GraphSAGE / GIN generalize to unseen nodes — and, under the fair protocol above, GraphSAGE wins.
+8. **Reproducibility**: fixed seeds, saved checkpoints, logged hyperparameters.
 
 ## Tech Stack
 

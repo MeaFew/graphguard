@@ -26,6 +26,11 @@ seaborn>=0.12.0
 streamlit>=1.28.0
 plotly>=5.18.0
 
+# Data download (download_data.py imports kagglehub; without it the script
+# silently falls back to the synthetic graph, which is NOT comparable to the
+# real Elliptic benchmark — so this dep must be present for the real-data path).
+kagglehub>=0.3.0
+
 # Utilities
 tqdm>=4.65.0
 joblib>=1.3.0

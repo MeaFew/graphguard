@@ -12,6 +12,7 @@ import xgboost as xgb
 from sklearn.metrics import (
     average_precision_score,
     f1_score,
+    precision_recall_curve,
     precision_score,
     recall_score,
     roc_auc_score,
@@ -51,10 +52,33 @@ def load_data():
     return x, y, train_mask, val_mask, test_mask
 
 
-def evaluate_model(model, x, y, mask, model_name: str, split: str) -> dict:
-    """Compute metrics for a fitted binary classifier."""
+def best_f1_threshold(probs, labels):
+    """Pick the F1-maximizing decision threshold on a validation split.
+
+    Mirrors scripts/train_gnn.best_f1_threshold. scale_pos_weight / class
+    balancing shifts the predicted-probability distribution away from 0.5, so
+    a hardcoded 0.5 cutoff understates F1. Fall back to 0.5 when the split has
+    no positive label.
+    """
+    if labels.sum() == 0:
+        return 0.5
+    precision, recall, thresholds = precision_recall_curve(labels, probs)
+    f1s = 2 * precision[:-1] * recall[:-1] / (precision[:-1] + recall[:-1] + 1e-12)
+    return float(thresholds[int(np.argmax(f1s))])
+
+
+def evaluate_model(model, x, y, mask, model_name: str, split: str, threshold=None) -> dict:
+    """Compute metrics for a fitted binary classifier.
+
+    When ``threshold`` is None, F1 uses the hardcoded 0.5 cutoff (kept for
+    backward compatibility with the validation-split evaluation). For the test
+    split, the caller should pass a threshold tuned on the validation split so
+    the reported F1 is not understated by the class-balancing shift.
+    """
     probs = model.predict_proba(x[mask])[:, 1]
-    preds = (probs >= 0.5).astype(int)
+    if threshold is None:
+        threshold = 0.5
+    preds = (probs >= threshold).astype(int)
     labels = y[mask]
 
     return {
@@ -65,6 +89,7 @@ def evaluate_model(model, x, y, mask, model_name: str, split: str) -> dict:
         "f1": float(f1_score(labels, preds)),
         "precision": float(precision_score(labels, preds, zero_division=0)),
         "recall": float(recall_score(labels, preds, zero_division=0)),
+        "threshold": float(threshold),
         "n_samples": int(mask.sum()),
     }
 
@@ -140,10 +165,18 @@ def train_both(force: bool = False):
     metrics = []
 
     mlp = train_mlp(x, y, train_mask, val_mask)
-    metrics.append(evaluate_model(mlp, x, y, test_mask, "mlp", "test"))
+    # Tune the F1 cutoff on the VALIDATION split (time-causally disjoint from
+    # test) and apply that single threshold to the test predictions — never
+    # tune the threshold on test, that would leak test labels. Earlier code
+    # hardcoded 0.5, which understated F1 under scale_pos_weight.
+    mlp_threshold = best_f1_threshold(mlp.predict_proba(x[val_mask])[:, 1], y[val_mask])
+    metrics.append(evaluate_model(mlp, x, y, test_mask, "mlp", "test", threshold=mlp_threshold))
 
     xgb_model = train_xgboost(x, y, train_mask, val_mask)
-    metrics.append(evaluate_model(xgb_model, x, y, test_mask, "xgboost", "test"))
+    xgb_threshold = best_f1_threshold(xgb_model.predict_proba(x[val_mask])[:, 1], y[val_mask])
+    metrics.append(
+        evaluate_model(xgb_model, x, y, test_mask, "xgboost", "test", threshold=xgb_threshold)
+    )
 
     REPORTS_DIR.mkdir(parents=True, exist_ok=True)
     # Merge into the shared metrics.json instead of overwriting it, so the
@@ -162,7 +195,8 @@ def train_both(force: bool = False):
     for m in metrics:
         print(
             f"  {m['model']:10s}  ROC-AUC: {m['roc_auc']:.4f}  "
-            f"AP: {m['average_precision']:.4f}  F1: {m['f1']:.4f}"
+            f"AP: {m['average_precision']:.4f}  F1: {m['f1']:.4f}  "
+            f"(threshold={m['threshold']:.3f}, tuned on val)"
         )
 
 

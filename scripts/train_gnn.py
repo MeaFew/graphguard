@@ -144,19 +144,22 @@ class GAT(GNNModel):
         self._act = F.elu
 
 
-class GIN(GNNModel):
+class GIN(torch.nn.Module):
     """Graph Isomorphism Network.
 
     GIN uses SUM aggregation, which is provably strictly more expressive than
     the mean/max aggregations of GCN/GraphSAGE for distinguishing non-isomorphic
     neighborhoods — relevant for fraud-ring structure. Each conv wraps an MLP
     rather than a linear transform.
+
+    This does NOT inherit from ``GNNModel``: ``GNNModel.__init__`` would build
+    placeholder SAGEConv layers that GIN immediately discards. Instead we build
+    the GIN convs directly and reuse ``GNNModel.forward`` via explicit attribute
+    parity (conv1/conv2/classifier/dropout/_act), avoiding the wasted work.
     """
 
     def __init__(self, in_channels: int, hidden_channels: int, dropout: float):
-        super().__init__(SAGEConv, in_channels, hidden_channels, dropout, act="relu")
-        # Replace the SAGEConv placeholders built by super().__init__ with GIN
-        # convs (GIN requires an inner nn.Sequential, not a bare Linear).
+        super().__init__()
         nn1 = torch.nn.Sequential(
             Linear(in_channels, hidden_channels),
             torch.nn.ReLU(),
@@ -169,6 +172,18 @@ class GIN(GNNModel):
         )
         self.conv1 = GINConv(nn1)
         self.conv2 = GINConv(nn2)
+        self.classifier = Linear(hidden_channels, 1)
+        self.dropout = dropout
+        self._act = F.relu
+
+    # Same forward as GNNModel — kept here rather than inherited so GIN's init
+    # can build its own conv layers without GNNModel's SAGEConv placeholders.
+    def forward(self, x, edge_index):
+        x = self._act(self.conv1(x, edge_index))
+        x = F.dropout(x, p=self.dropout, training=self.training)
+        x = self._act(self.conv2(x, edge_index))
+        x = F.dropout(x, p=self.dropout, training=self.training)
+        return self.classifier(x).squeeze(-1)
 
 
 MODEL_CLASSES = {
@@ -187,9 +202,9 @@ MODEL_PATHS = {
 
 
 @torch.no_grad()
-def evaluate(model, loader, device):
-    from sklearn.metrics import average_precision_score, f1_score, roc_auc_score
-
+def _collect_probs_labels(model, loader, device):
+    """Run a model over a NeighborLoader and return (probs, labels) for the
+    root nodes of each batch. Shared by evaluate() and threshold tuning."""
     model.eval()
     all_probs = []
     all_labels = []
@@ -202,12 +217,49 @@ def evaluate(model, loader, device):
         root_mask[: batch.batch_size] = True
         all_probs.append(probs[root_mask].cpu().numpy())
         all_labels.append(batch.y[root_mask].cpu().numpy())
-    all_probs = np.concatenate(all_probs)
-    all_labels = np.concatenate(all_labels)
+    return np.concatenate(all_probs), np.concatenate(all_labels)
+
+
+def best_f1_threshold(probs, labels):
+    """Pick the decision threshold that maximizes F1 on a validation split.
+
+    The illicit class is a ~2% minority and training uses pos_weight, so the
+    model's sigmoid outputs are NOT centered at 0.5 — the default 0.5 cutoff
+    systematically understates F1. We sweep the precision-recall curve (which
+    already evaluates candidate thresholds) and return the F1-maximizing one.
+    Falling back to 0.5 when there is no positive label in the split.
+    """
+    from sklearn.metrics import precision_recall_curve
+
+    if labels.sum() == 0:
+        return 0.5
+    precision, recall, thresholds = precision_recall_curve(labels, probs)
+    # precision_recall_curve returns thresholds of length n-1 vs. p/r of length n;
+    # the last (p, r) pair has no corresponding threshold. F1 is only defined
+    # where a threshold exists, so align with thresholds.
+    f1s = 2 * precision[:-1] * recall[:-1] / (precision[:-1] + recall[:-1] + 1e-12)
+    best_idx = int(np.argmax(f1s))
+    return float(thresholds[best_idx])
+
+
+@torch.no_grad()
+def evaluate(model, loader, device, threshold=None):
+    """Evaluate a model. ``threshold`` selects the F1 cutoff.
+
+    When ``threshold`` is None it is derived from the loader's own PR curve
+    (self-referential optimal F1). For an honest test-split number, the caller
+    should pass a threshold tuned on the *validation* split — see train().
+    """
+    from sklearn.metrics import average_precision_score, f1_score, roc_auc_score
+
+    all_probs, all_labels = _collect_probs_labels(model, loader, device)
+    if threshold is None:
+        threshold = best_f1_threshold(all_probs, all_labels)
     return {
         "roc_auc": float(roc_auc_score(all_labels, all_probs)),
         "average_precision": float(average_precision_score(all_labels, all_probs)),
-        "f1": float(f1_score(all_labels, all_probs >= 0.5)),
+        "f1": float(f1_score(all_labels, all_probs >= threshold)),
+        "threshold": float(threshold),
     }
 
 
@@ -343,14 +395,23 @@ def train(model_name: str, force: bool = False):
                 print(f"  Early stopping at epoch {epoch}")
                 break
 
-    # Load best and evaluate on test
+    # Load best checkpoint, then report test F1 at a VAL-tuned threshold.
+    #
+    # The F1 cutoff must NOT be tuned on the test split — doing so leaks the
+    # test labels. We tune it on the validation split (which is already
+    # time-causally disjoint from test) and apply that single threshold to the
+    # test predictions. Earlier code hardcoded 0.5, which understated F1 because
+    # pos_weight shifts the sigmoid distribution well below 0.5.
     model.load_state_dict(torch.load(model_path, weights_only=False))
-    test_metrics = evaluate(model, test_loader, device)
+    val_probs, val_labels = _collect_probs_labels(model, val_loader, device)
+    tuned_threshold = best_f1_threshold(val_probs, val_labels)
+    test_metrics = evaluate(model, test_loader, device, threshold=tuned_threshold)
     print(
         f"{model_name.upper()} test metrics: "
         f"ROC-AUC={test_metrics['roc_auc']:.4f} "
         f"AP={test_metrics['average_precision']:.4f} "
-        f"F1={test_metrics['f1']:.4f}"
+        f"F1={test_metrics['f1']:.4f} "
+        f"(threshold={test_metrics['threshold']:.3f}, tuned on val)"
     )
 
     # Upsert this model's metrics in the json (replace any prior entry for the
