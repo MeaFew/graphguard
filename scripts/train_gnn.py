@@ -86,10 +86,10 @@ class GNNModel(torch.nn.Module):
     """Shared 2-layer GNN backbone (conv -> activation -> dropout -> conv ->
     activation -> dropout -> linear classifier).
 
-    The conv layer type and the per-layer activation are parametrized so that
-    GCN/GraphSAGE/GAT become thin wrappers instead of three ~95%-identical
-    copies. ``act`` is applied after each conv ("relu" by default; GAT uses
-    "elu").
+    The conv layer type, per-layer activation, and any conv-specific keyword
+    arguments are parametrized so that GCN/GraphSAGE/GAT become thin wrappers
+    instead of three ~95%-identical copies. ``act`` is applied after each conv
+    ("relu" by default; GAT uses "elu").
     """
 
     def __init__(
@@ -99,10 +99,19 @@ class GNNModel(torch.nn.Module):
         hidden_channels: int,
         dropout: float,
         act: str = "relu",
+        conv1_kwargs: dict | None = None,
+        conv2_kwargs: dict | None = None,
     ):
         super().__init__()
-        self.conv1 = conv_cls(in_channels, hidden_channels)
-        self.conv2 = conv_cls(hidden_channels, hidden_channels)
+        conv1_kwargs = conv1_kwargs or {}
+        conv2_kwargs = conv2_kwargs or {}
+        self.conv1 = conv_cls(in_channels, hidden_channels, **conv1_kwargs)
+        # GAT concatenates heads in the first layer, so conv2 may need a
+        # different input dimension than hidden_channels.
+        conv1_out = hidden_channels
+        if conv1_kwargs.get("concat", True) and "heads" in conv1_kwargs:
+            conv1_out = hidden_channels * conv1_kwargs["heads"]
+        self.conv2 = conv_cls(conv1_out, hidden_channels, **conv2_kwargs)
         self.classifier = Linear(hidden_channels, 1)
         self.dropout = dropout
         self._act = F.relu if act == "relu" else F.elu
@@ -127,21 +136,15 @@ class GraphSAGE(GNNModel):
 
 class GAT(GNNModel):
     def __init__(self, in_channels: int, hidden_channels: int, dropout: float, heads: int = 4):
-        # GAT needs conv-level attention dropout + multi-head concatenation,
-        # so build the convs directly and only reuse the shared forward().
-        torch.nn.Module.__init__(self)
-        self.conv1 = GATConv(in_channels, hidden_channels, heads=heads, dropout=dropout)
-        # Concatenate heads in first layer => hidden_channels * heads
-        self.conv2 = GATConv(
-            hidden_channels * heads,
+        super().__init__(
+            GATConv,
+            in_channels,
             hidden_channels,
-            heads=1,
-            concat=False,
-            dropout=dropout,
+            dropout,
+            act="elu",
+            conv1_kwargs={"heads": heads, "dropout": dropout},
+            conv2_kwargs={"heads": 1, "concat": False, "dropout": dropout},
         )
-        self.classifier = Linear(hidden_channels, 1)
-        self.dropout = dropout
-        self._act = F.elu
 
 
 class GIN(torch.nn.Module):
@@ -274,7 +277,7 @@ def train(model_name: str, force: bool = False):
     device = torch.device(DEVICE if torch.cuda.is_available() else "cpu")
     print(f"Using device: {device}")
 
-    data = torch.load(GRAPH_DATA_PT, weights_only=False)
+    data = torch.load(GRAPH_DATA_PT, weights_only=True)
     # Keep data on CPU; NeighborLoader copies sampled subgraphs to the device.
 
     # TIME-CAUSAL sampling (leakage fix): earlier NeighborLoader sampling ran
@@ -402,7 +405,7 @@ def train(model_name: str, force: bool = False):
     # time-causally disjoint from test) and apply that single threshold to the
     # test predictions. Earlier code hardcoded 0.5, which understated F1 because
     # pos_weight shifts the sigmoid distribution well below 0.5.
-    model.load_state_dict(torch.load(model_path, weights_only=False))
+    model.load_state_dict(torch.load(model_path, weights_only=True))
     val_probs, val_labels = _collect_probs_labels(model, val_loader, device)
     tuned_threshold = best_f1_threshold(val_probs, val_labels)
     test_metrics = evaluate(model, test_loader, device, threshold=tuned_threshold)

@@ -1,7 +1,7 @@
 """Build a PyTorch Geometric Data object from the raw Elliptic CSV files."""
 
 import argparse
-import pickle
+import json
 import sys
 from pathlib import Path
 
@@ -36,11 +36,24 @@ except ImportError:
     )
 
 
-def build_graph(force: bool = False):
-    """Load raw CSVs and build a PyG Data object with time-based masks."""
-    if GRAPH_DATA_PT.exists() and not force:
-        print(f"Graph data already exists at {GRAPH_DATA_PT}. Use --force to rebuild.")
-        return
+def _require_columns(df: pd.DataFrame, name: str, required: list[str]) -> None:
+    missing = [c for c in required if c not in df.columns]
+    if missing:
+        raise ValueError(f"{name} is missing required columns: {missing}")
+
+
+def _load_raw_csvs() -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
+    """Load and validate the three raw Elliptic CSVs."""
+    files = [
+        (ELLIPTIC_FEATURES_CSV, "features CSV", ["txId", "time_step"]),
+        (ELLIPTIC_CLASSES_CSV, "classes CSV", ["txId", "class"]),
+        (ELLIPTIC_EDGES_CSV, "edges CSV", ["txId1", "txId2"]),
+    ]
+    for path, label, _ in files:
+        if not path.exists():
+            raise FileNotFoundError(f"{label} not found: {path}")
+        if path.stat().st_size == 0:
+            raise ValueError(f"{label} is empty: {path}")
 
     print("Loading raw data...")
     # The canonical Elliptic features CSV ships WITHOUT a header row (165
@@ -57,6 +70,22 @@ def build_graph(force: bool = False):
         df_features = pd.read_csv(ELLIPTIC_FEATURES_CSV)
     df_classes = pd.read_csv(ELLIPTIC_CLASSES_CSV)
     df_edges = pd.read_csv(ELLIPTIC_EDGES_CSV)
+
+    for df, (_, label, required) in zip([df_features, df_classes, df_edges], files, strict=True):
+        _require_columns(df, label, required)
+        if len(df) == 0:
+            raise ValueError(f"{label} has no data rows: empty input file")
+
+    return df_features, df_classes, df_edges
+
+
+def build_graph(force: bool = False):
+    """Load raw CSVs and build a PyG Data object with time-based masks."""
+    if GRAPH_DATA_PT.exists() and not force:
+        print(f"Graph data already exists at {GRAPH_DATA_PT}. Use --force to rebuild.")
+        return
+
+    df_features, df_classes, df_edges = _load_raw_csvs()
 
     # ── Feature matrix ──────────────────────────────────────────────
     # Columns: txId, time_step, feat_0, feat_1, ...
@@ -146,7 +175,7 @@ def build_graph(force: bool = False):
     PROCESSED_DATA_DIR.mkdir(parents=True, exist_ok=True)
     torch.save(data, GRAPH_DATA_PT)
 
-    # Also save a small metadata pickle for non-PyG consumers
+    # Also save a small metadata JSON file for non-PyG consumers
     metadata = {
         "n_nodes": data.num_nodes,
         "n_edges": data.num_edges,
@@ -156,8 +185,8 @@ def build_graph(force: bool = False):
         "test_samples": int(test_mask.sum()),
         "illicit_ratio": float((y == 1).float().mean()),
     }
-    with open(PROCESSED_DATA_DIR / "metadata.pkl", "wb") as f:
-        pickle.dump(metadata, f)
+    with open(PROCESSED_DATA_DIR / "metadata.json", "w") as f:
+        json.dump(metadata, f, indent=2)
 
     print("Built graph:")
     print(f"  Nodes: {data.num_nodes}")

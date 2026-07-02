@@ -4,6 +4,7 @@ Tries Kaggle Hub first, then falls back to a synthetic graph so the project
 can run end-to-end without API credentials.
 """
 
+import shutil
 import sys
 from pathlib import Path
 
@@ -21,16 +22,43 @@ def download_from_kaggle(output_dir: Path) -> bool:
     ``kagglehub`` dependency, network error, or missing Kaggle credentials).
     Catches specific exception types so a genuine programming error is not
     silently swallowed and reported as "download failed".
+
+    The ``path`` parameter of ``kagglehub.dataset_download`` refers to a path
+    *inside* the dataset, not the local output directory. We therefore download
+    to kagglehub's cache directory and copy the three required CSVs into
+    ``output_dir``.
     """
     try:
         import kagglehub
 
         print("Attempting to download Elliptic Data Set from Kaggle...")
-        path = kagglehub.dataset_download(
-            "ellipticco/elliptic-data-set",
-            path=str(output_dir),
-        )
-        print(f"Downloaded to: {path}")
+        cache_dir = kagglehub.dataset_download("ellipticco/elliptic-data-set")
+        print(f"Downloaded to cache: {cache_dir}")
+
+        required_files = {
+            "elliptic_txs_features.csv": output_dir / "elliptic_txs_features.csv",
+            "elliptic_txs_edgelist.csv": output_dir / "elliptic_txs_edgelist.csv",
+            "elliptic_txs_classes.csv": output_dir / "elliptic_txs_classes.csv",
+        }
+
+        cache_path = Path(cache_dir)
+        missing = []
+        for fname, dest in required_files.items():
+            src = cache_path / fname
+            if not src.exists():
+                # kagglehub may return a parent directory or a zip-extracted
+                # subdirectory; search one level deep for the file.
+                candidates = list(cache_path.rglob(fname))
+                if not candidates:
+                    missing.append(fname)
+                    continue
+                src = candidates[0]
+            shutil.copy2(src, dest)
+            print(f"  Copied {fname} -> {dest}")
+
+        if missing:
+            print(f"Kaggle download failed: missing required files {missing}")
+            return False
         return True
     except ImportError:
         print("Kaggle download failed: 'kagglehub' is not installed.")

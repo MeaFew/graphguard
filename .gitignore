@@ -42,6 +42,7 @@ Thumbs.db
 data/raw/*.csv
 data/processed/*.pt
 data/processed/*.pkl
+data/processed/*.json
 models/*.pt
 models/*.joblib
 

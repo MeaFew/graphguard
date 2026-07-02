@@ -65,5 +65,11 @@ POS_WEIGHT = 10.0
 # (scripts already did `torch.device(DEVICE if cuda else "cpu")`; centralizing
 # it here removes the misleading "cuda" literal on non-GPU hosts).
 import torch as _torch
+from torch_geometric.data import Data
+from torch_geometric.data.data import DataEdgeAttr, DataTensorAttr
+from torch_geometric.data.storage import GlobalStorage
 
 DEVICE = "cuda" if _torch.cuda.is_available() else "cpu"
+
+# Allow PyG Data objects to be loaded with torch.load(..., weights_only=True).
+_torch.serialization.add_safe_globals([Data, DataEdgeAttr, DataTensorAttr, GlobalStorage])

@@ -43,7 +43,7 @@ except ImportError:
 
 
 def load_data():
-    data = torch.load(GRAPH_DATA_PT, weights_only=False)
+    data = torch.load(GRAPH_DATA_PT, weights_only=True)
     x = data.x.numpy()
     y = data.y.numpy()
     train_mask = data.train_mask.numpy()

@@ -68,8 +68,17 @@ from train_gnn import GAT, GCN, GIN, GraphSAGE
 
 
 def load_data():
-    data = torch.load(GRAPH_DATA_PT, weights_only=False)
-    return data
+    return torch.load(GRAPH_DATA_PT, weights_only=True)
+
+
+def _safe_joblib_load(path: Path) -> object:
+    """Load a joblib-serialized baseline model with basic validation."""
+    if path.suffix != ".joblib":
+        raise ValueError(f"Expected .joblib model file, got {path}")
+    obj = joblib.load(path)
+    if not hasattr(obj, "predict_proba"):
+        raise ValueError(f"Loaded object from {path} does not have predict_proba method")
+    return obj
 
 
 def evaluate_baselines(data):
@@ -82,14 +91,14 @@ def evaluate_baselines(data):
         if not path.exists():
             print(f"Skipping {name}: model not found at {path}")
             continue
-        model = joblib.load(path)
+        model = _safe_joblib_load(path)
         probs = model.predict_proba(x[test_mask])[:, 1]
         results.append({"model": name, "probs": probs, "labels": y[test_mask]})
     return results
 
 
 @torch.no_grad()
-def evaluate_gnn(data, model_class, model_path, device):
+def evaluate_gnn(data, model_class, model_path, device, model_name: str):
     if not model_path.exists():
         print(f"Skipping {model_class.__name__}: model not found at {model_path}")
         return None
@@ -99,7 +108,7 @@ def evaluate_gnn(data, model_class, model_path, device):
         hidden_channels=HIDDEN_DIM,
         dropout=DROPOUT,
     ).to(device)
-    model.load_state_dict(torch.load(model_path, weights_only=False, map_location=device))
+    model.load_state_dict(torch.load(model_path, weights_only=True, map_location=device))
     model.eval()
 
     # Time-causal test loader: the test split is the LATEST block, so its
@@ -127,7 +136,7 @@ def evaluate_gnn(data, model_class, model_path, device):
         all_labels.append(batch.y[root_mask].cpu().numpy())
 
     return {
-        "model": model_class.__name__.lower().replace("graphsage", "sage").replace("graph", ""),
+        "model": model_name,
         "probs": np.concatenate(all_probs),
         "labels": np.concatenate(all_labels),
     }
@@ -194,8 +203,8 @@ def main():
         (GAT, GAT_MODEL_PATH, "gat"),
         (GIN, GIN_MODEL_PATH, "gin"),
     ]
-    for model_class, model_path, _ in gnn_configs:
-        r = evaluate_gnn(data, model_class, model_path, device)
+    for model_class, model_path, model_name in gnn_configs:
+        r = evaluate_gnn(data, model_class, model_path, device, model_name)
         if r:
             results.append(r)
 

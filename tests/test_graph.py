@@ -18,7 +18,7 @@ def test_graph_data_exists():
 
 
 def test_graph_properties():
-    data = torch.load(GRAPH_DATA_PT, weights_only=False)
+    data = torch.load(GRAPH_DATA_PT, weights_only=True)
     assert data.num_nodes > 0
     assert data.num_edges > 0
     assert data.num_features > 0
@@ -30,7 +30,7 @@ def test_graph_properties():
 
 def test_no_time_leakage():
     """Train/val/test masks should not overlap in time steps."""
-    data = torch.load(GRAPH_DATA_PT, weights_only=False)
+    data = torch.load(GRAPH_DATA_PT, weights_only=True)
     train_steps = set(data.time_step[data.train_mask].tolist())
     val_steps = set(data.time_step[data.val_mask].tolist())
     test_steps = set(data.time_step[data.test_mask].tolist())
@@ -40,7 +40,7 @@ def test_no_time_leakage():
 
 
 def test_label_distribution():
-    data = torch.load(GRAPH_DATA_PT, weights_only=False)
+    data = torch.load(GRAPH_DATA_PT, weights_only=True)
     known = data.y >= 0
     n_illicit = int((data.y[known] == 1).sum())
     n_licit = int((data.y[known] == 0).sum())
@@ -51,7 +51,7 @@ def test_label_distribution():
 
 
 def _test_model_forward(model_class):
-    data = torch.load(GRAPH_DATA_PT, weights_only=False)
+    data = torch.load(GRAPH_DATA_PT, weights_only=True)
     model = model_class(in_channels=data.num_features, hidden_channels=16, dropout=0.5)
     out = model(data.x, data.edge_index)
     assert out.shape == (data.num_nodes,)
@@ -85,7 +85,7 @@ class TestLeakagePrevention:
         build script uses StandardScaler().fit(x[train_mask]); confirm the
         artifact reflects that by checking train rows are mean-0 in every
         feature column (val/test need not be)."""
-        data = torch.load(GRAPH_DATA_PT, weights_only=False)
+        data = torch.load(GRAPH_DATA_PT, weights_only=True)
         x = data.x.numpy()
         train = data.train_mask.numpy()
         train_means = x[train].mean(axis=0)
@@ -102,7 +102,7 @@ class TestLeakagePrevention:
         <= the train max timestep."""
         from config import TRAIN_TIME_STEPS
 
-        data = torch.load(GRAPH_DATA_PT, weights_only=False)
+        data = torch.load(GRAPH_DATA_PT, weights_only=True)
         ts = data.time_step
         ei = data.edge_index
         train_max = int(max(TRAIN_TIME_STEPS))
