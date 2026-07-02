@@ -17,9 +17,6 @@ ELLIPTIC_CLASSES_CSV = RAW_DATA_DIR / "elliptic_txs_classes.csv"
 
 # ── Processed data files ──────────────────────────────────────────
 GRAPH_DATA_PT = PROCESSED_DATA_DIR / "graph_data.pt"
-# Reserved for a future node-feature export; not currently written by any
-# script (build_graph.py embeds features directly in graph_data.pt).
-NODE_FEATURES_CSV = PROCESSED_DATA_DIR / "node_features.csv"
 
 # ── Model outputs ─────────────────────────────────────────────────
 MLP_MODEL_PATH = MODELS_DIR / "mlp_baseline.joblib"
@@ -34,9 +31,6 @@ METRICS_JSON = REPORTS_DIR / "metrics.json"
 COMPARISON_CSV = REPORTS_DIR / "model_comparison.csv"
 ROC_CURVE_PNG = REPORTS_DIR / "roc_curves.png"
 PR_CURVE_PNG = REPORTS_DIR / "pr_curves.png"
-# Reserved for a future confusion-matrix plot; evaluate.py does not currently
-# produce it.
-CONFUSION_MATRIX_PNG = REPORTS_DIR / "confusion_matrices.png"
 
 # ── Modeling constants ────────────────────────────────────────────
 RANDOM_STATE = 42

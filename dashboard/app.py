@@ -17,7 +17,7 @@ st.set_page_config(page_title="GraphGuard", layout="wide")
 st.title("GraphGuard: GNN Fraud Detection")
 st.markdown(
     "Compare tabular baselines (MLP, XGBoost) against graph neural networks "
-    "(GCN, GraphSAGE, GAT) on illicit transaction detection."
+    "(GCN, GraphSAGE, GAT, GIN) on illicit transaction detection."
 )
 
 # ── Metrics table ─────────────────────────────────────────────────
