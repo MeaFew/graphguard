@@ -1,9 +1,9 @@
-.PHONY: all setup data baselines gnn evaluate test lint format format-check verify dashboard clean
+.PHONY: all setup data baselines gnn evaluate explain test lint format format-check verify dashboard clean
 
 PYTHON := python
 
 # ── One-shot pipeline ─────────────────────────────────────────────
-all: data baselines gnn evaluate test
+all: data baselines gnn evaluate explain test
 
 # ── Environment ───────────────────────────────────────────────────
 setup:
@@ -25,6 +25,12 @@ gnn:
 # ── Evaluation ────────────────────────────────────────────────────
 evaluate:
 	$(PYTHON) scripts/evaluate.py
+
+# ── GNN 可解释性（GNNExplainer） ───────────────────────────────────
+# 对高置信度 illicit 真阳性做解释，输出关键子图 PNG + 聚合统计 JSON。
+# 这是金融合规视角的"深度记忆点"：回答"为什么这笔交易被判欺诈"。
+explain:
+	$(PYTHON) scripts/explain_gnn.py
 
 # ── Quality gates ─────────────────────────────────────────────────
 test:

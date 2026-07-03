@@ -34,6 +34,7 @@ def main():
         ("Train baselines", [PYTHON, "scripts/train_baseline.py"]),
         ("Train GNNs", [PYTHON, "scripts/train_gnn.py", "--model", "all"]),
         ("Evaluate", [PYTHON, "scripts/evaluate.py"]),
+        ("GNN explainability", [PYTHON, "scripts/explain_gnn.py"]),
         ("Test", [PYTHON, "-m", "pytest", "tests/", "-q"]),
     ]
 

@@ -32,6 +32,30 @@ COMPARISON_CSV = REPORTS_DIR / "model_comparison.csv"
 ROC_CURVE_PNG = REPORTS_DIR / "roc_curves.png"
 PR_CURVE_PNG = REPORTS_DIR / "pr_curves.png"
 
+# ── GNN explainability (GNNExplainer) ─────────────────────────────
+# Per-node explanation artifacts.
+EXPLANATIONS_DIR = REPORTS_DIR / "images" / "explanations"
+EXPLANATION_SUMMARY_JSON = REPORTS_DIR / "explanation_summary.json"
+
+# k-hop neighborhood sampled before explaining each node. The GNN backbone is a
+# 2-layer conv net, so its receptive field is exactly 2 hops; explaining on the
+# full graph (203k nodes) is both slow and (for a 2-hop model) meaningless.
+EXPLAINER_HOPS = 2
+# Elliptic edges are directed (BTC money flow: src -> dst). GraphSAGE aggregates
+# source_to_target, so a node's prediction depends on its INCOMING predecessors
+# (who sent it BTC). We sample predecessors, not successors.
+EXPLAINER_FLOW = "source_to_target"
+EXPLAINER_EPOCHS = 100
+EXPLAINER_LR = 0.01
+# How many high-confidence true-positive illicit nodes to explain.
+EXPLAIN_NUM_NODES = 40
+# Top-k edges to retain per explained node's subgraph (keeps visualizations
+# legible — a 2-hop neighborhood can have 100+ edges).
+EXPLAIN_TOP_K_EDGES = 8
+# Max nodes shown in the visualized subgraph (further edges are pruned by
+# importance). Above ~20 nodes a spring layout becomes an unreadable hairball.
+EXPLAIN_MAX_PLOT_NODES = 20
+
 # ── Modeling constants ────────────────────────────────────────────
 RANDOM_STATE = 42
 
