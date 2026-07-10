@@ -24,55 +24,32 @@ from torch.nn import Linear
 from torch_geometric.loader import NeighborLoader
 from torch_geometric.nn import GATConv, GCNConv, GINConv, SAGEConv
 
-try:
-    from config import (
-        BATCH_SIZE,
-        DEVICE,
-        DROPOUT,
-        GAT_MODEL_PATH,
-        GCN_MODEL_PATH,
-        GIN_MODEL_PATH,
-        GRAPH_DATA_PT,
-        HIDDEN_DIM,
-        LEARNING_RATE,
-        MAX_EPOCHS,
-        METRICS_JSON,
-        MODELS_DIR,
-        NUM_NEIGHBORS,
-        PATIENCE,
-        POS_WEIGHT,
-        RANDOM_STATE,
-        SAGE_MODEL_PATH,
-        TEST_TIME_STEPS,
-        TRAIN_TIME_STEPS,
-        VAL_TIME_STEPS,
-        WEIGHT_DECAY,
-    )
-except ImportError:
-    sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
-    from config import (
-        BATCH_SIZE,
-        DEVICE,
-        DROPOUT,
-        GAT_MODEL_PATH,
-        GCN_MODEL_PATH,
-        GIN_MODEL_PATH,
-        GRAPH_DATA_PT,
-        HIDDEN_DIM,
-        LEARNING_RATE,
-        MAX_EPOCHS,
-        METRICS_JSON,
-        MODELS_DIR,
-        NUM_NEIGHBORS,
-        PATIENCE,
-        POS_WEIGHT,
-        RANDOM_STATE,
-        SAGE_MODEL_PATH,
-        TEST_TIME_STEPS,
-        TRAIN_TIME_STEPS,
-        VAL_TIME_STEPS,
-        WEIGHT_DECAY,
-    )
+from graphguard.config import (
+    BATCH_SIZE,
+    DEVICE,
+    DROPOUT,
+    GAT_MODEL_PATH,
+    GCN_MODEL_PATH,
+    GIN_MODEL_PATH,
+    GRAPH_DATA_PT,
+    HIDDEN_DIM,
+    LEARNING_RATE,
+    MAX_EPOCHS,
+    METRICS_JSON,
+    MODELS_DIR,
+    NUM_NEIGHBORS,
+    PATIENCE,
+    POS_WEIGHT,
+    RANDOM_STATE,
+    SAGE_MODEL_PATH,
+    TEST_TIME_STEPS,
+    TRAIN_TIME_STEPS,
+    VAL_TIME_STEPS,
+    WEIGHT_DECAY,
+)
+from graphguard.logging_setup import get_logger, setup_logging
+
+logger = get_logger(__name__)
 
 
 def set_seed(seed: int):
@@ -271,11 +248,13 @@ def train(model_name: str, force: bool = False):
 
     model_path = MODEL_PATHS[model_name]
     if model_path.exists() and not force:
-        print(f"{model_name.upper()} model already exists at {model_path}. Use --force to retrain.")
+        logger.info(
+            f"{model_name.upper()} model already exists at {model_path}. Use --force to retrain."
+        )
         return
 
     device = torch.device(DEVICE if torch.cuda.is_available() else "cpu")
-    print(f"Using device: {device}")
+    logger.info(f"Using device: {device}")
 
     data = torch.load(GRAPH_DATA_PT, weights_only=True)
     # Keep data on CPU; NeighborLoader copies sampled subgraphs to the device.
@@ -320,7 +299,7 @@ def train(model_name: str, force: bool = False):
     train_sub = _subgraph(train_max)
     val_sub = _subgraph(val_max)
     test_sub = _subgraph(test_max)
-    print(
+    logger.info(
         f"  Time-causal subgraphs: train keeps {train_sub.num_edges:,}/{ei.size(1):,} edges "
         f"(both endpoints <= ts {train_max})"
     )
@@ -364,7 +343,7 @@ def train(model_name: str, force: bool = False):
     best_val_ap = 0.0
     patience_counter = 0
 
-    print(f"Training {model_name.upper()}...")
+    logger.info(f"Training {model_name.upper()}...")
     for epoch in range(1, MAX_EPOCHS + 1):
         model.train()
         total_loss = 0.0
@@ -382,7 +361,7 @@ def train(model_name: str, force: bool = False):
 
         val_metrics = evaluate(model, val_loader, device)
         if epoch % 10 == 0 or epoch == 1:
-            print(
+            logger.info(
                 f"  Epoch {epoch:03d}  Val ROC-AUC: {val_metrics['roc_auc']:.4f}  "
                 f"AP: {val_metrics['average_precision']:.4f}"
             )
@@ -395,7 +374,7 @@ def train(model_name: str, force: bool = False):
         else:
             patience_counter += 1
             if patience_counter >= PATIENCE:
-                print(f"  Early stopping at epoch {epoch}")
+                logger.info(f"  Early stopping at epoch {epoch}")
                 break
 
     # Load best checkpoint, then report test F1 at a VAL-tuned threshold.
@@ -409,7 +388,7 @@ def train(model_name: str, force: bool = False):
     val_probs, val_labels = _collect_probs_labels(model, val_loader, device)
     tuned_threshold = best_f1_threshold(val_probs, val_labels)
     test_metrics = evaluate(model, test_loader, device, threshold=tuned_threshold)
-    print(
+    logger.info(
         f"{model_name.upper()} test metrics: "
         f"ROC-AUC={test_metrics['roc_auc']:.4f} "
         f"AP={test_metrics['average_precision']:.4f} "
@@ -455,4 +434,5 @@ def main():
 
 
 if __name__ == "__main__":
+    setup_logging()
     main()

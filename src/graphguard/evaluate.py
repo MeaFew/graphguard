@@ -19,52 +19,31 @@ from sklearn.metrics import (
 )
 from torch_geometric.loader import NeighborLoader
 
-try:
-    from config import (
-        BATCH_SIZE,
-        COMPARISON_CSV,
-        DEVICE,
-        DROPOUT,
-        GAT_MODEL_PATH,
-        GCN_MODEL_PATH,
-        GIN_MODEL_PATH,
-        GRAPH_DATA_PT,
-        HIDDEN_DIM,
-        METRICS_JSON,
-        MLP_MODEL_PATH,
-        MODELS_DIR,
-        NUM_NEIGHBORS,
-        PR_CURVE_PNG,
-        REPORTS_DIR,
-        ROC_CURVE_PNG,
-        SAGE_MODEL_PATH,
-        XGB_MODEL_PATH,
-    )
-except ImportError:
-    sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
-    from config import (
-        BATCH_SIZE,
-        COMPARISON_CSV,
-        DEVICE,
-        DROPOUT,
-        GAT_MODEL_PATH,
-        GCN_MODEL_PATH,
-        GIN_MODEL_PATH,
-        GRAPH_DATA_PT,
-        HIDDEN_DIM,
-        METRICS_JSON,
-        MLP_MODEL_PATH,
-        MODELS_DIR,
-        NUM_NEIGHBORS,
-        PR_CURVE_PNG,
-        REPORTS_DIR,
-        ROC_CURVE_PNG,
-        SAGE_MODEL_PATH,
-        XGB_MODEL_PATH,
-    )
+from graphguard.config import (
+    BATCH_SIZE,
+    COMPARISON_CSV,
+    DEVICE,
+    DROPOUT,
+    GAT_MODEL_PATH,
+    GCN_MODEL_PATH,
+    GIN_MODEL_PATH,
+    GRAPH_DATA_PT,
+    HIDDEN_DIM,
+    METRICS_JSON,
+    MLP_MODEL_PATH,
+    MODELS_DIR,
+    NUM_NEIGHBORS,
+    PR_CURVE_PNG,
+    REPORTS_DIR,
+    ROC_CURVE_PNG,
+    SAGE_MODEL_PATH,
+    XGB_MODEL_PATH,
+)
+from graphguard.logging_setup import get_logger, setup_logging
 
-sys.path.insert(0, str(Path(__file__).resolve().parent))
-from train_gnn import GAT, GCN, GIN, GraphSAGE
+from graphguard.train_gnn import GAT, GCN, GIN, GraphSAGE
+
+logger = get_logger(__name__)
 
 
 def load_data():
@@ -89,7 +68,7 @@ def evaluate_baselines(data):
 
     for name, path in [("mlp", MLP_MODEL_PATH), ("xgboost", XGB_MODEL_PATH)]:
         if not path.exists():
-            print(f"Skipping {name}: model not found at {path}")
+            logger.info(f"Skipping {name}: model not found at {path}")
             continue
         model = _safe_joblib_load(path)
         probs = model.predict_proba(x[test_mask])[:, 1]
@@ -100,7 +79,7 @@ def evaluate_baselines(data):
 @torch.no_grad()
 def evaluate_gnn(data, model_class, model_path, device, model_name: str):
     if not model_path.exists():
-        print(f"Skipping {model_class.__name__}: model not found at {model_path}")
+        logger.info(f"Skipping {model_class.__name__}: model not found at {model_path}")
         return None
 
     model = model_class(
@@ -230,13 +209,14 @@ def main():
     with open(METRICS_JSON, "w") as f:
         json.dump(existing, f, indent=2)
 
-    print("\nModel comparison:")
-    print(df.to_string(index=False))
+    logger.info("\nModel comparison:")
+    logger.info(df.to_string(index=False))
 
     if results:
         plot_curves(results)
-        print(f"\nSaved plots to {REPORTS_DIR}")
+        logger.info(f"\nSaved plots to {REPORTS_DIR}")
 
 
 if __name__ == "__main__":
+    setup_logging()
     main()

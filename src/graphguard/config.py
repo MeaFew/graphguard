@@ -3,7 +3,11 @@
 from pathlib import Path
 
 # ── Base directories ──────────────────────────────────────────────
-BASE_DIR = Path(__file__).resolve().parent
+# Resolve to the project root (the dir containing src/). Using .parent here
+# would point at src/graphguard/, causing generated data/models/reports to land
+# inside the package tree (and get committed by accident). parents[2] points at
+# the repo root instead.
+BASE_DIR = Path(__file__).resolve().parents[2]
 DATA_DIR = BASE_DIR / "data"
 RAW_DATA_DIR = DATA_DIR / "raw"
 PROCESSED_DATA_DIR = DATA_DIR / "processed"

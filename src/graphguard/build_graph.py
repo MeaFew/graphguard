@@ -11,29 +11,19 @@ import torch
 from sklearn.preprocessing import StandardScaler
 from torch_geometric.data import Data
 
-try:
-    from config import (
-        ELLIPTIC_CLASSES_CSV,
-        ELLIPTIC_EDGES_CSV,
-        ELLIPTIC_FEATURES_CSV,
-        GRAPH_DATA_PT,
-        PROCESSED_DATA_DIR,
-        TEST_TIME_STEPS,
-        TRAIN_TIME_STEPS,
-        VAL_TIME_STEPS,
-    )
-except ImportError:
-    sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
-    from config import (
-        ELLIPTIC_CLASSES_CSV,
-        ELLIPTIC_EDGES_CSV,
-        ELLIPTIC_FEATURES_CSV,
-        GRAPH_DATA_PT,
-        PROCESSED_DATA_DIR,
-        TEST_TIME_STEPS,
-        TRAIN_TIME_STEPS,
-        VAL_TIME_STEPS,
-    )
+from graphguard.config import (
+    ELLIPTIC_CLASSES_CSV,
+    ELLIPTIC_EDGES_CSV,
+    ELLIPTIC_FEATURES_CSV,
+    GRAPH_DATA_PT,
+    PROCESSED_DATA_DIR,
+    TEST_TIME_STEPS,
+    TRAIN_TIME_STEPS,
+    VAL_TIME_STEPS,
+)
+from graphguard.logging_setup import get_logger, setup_logging
+
+logger = get_logger(__name__)
 
 
 def _require_columns(df: pd.DataFrame, name: str, required: list[str]) -> None:
@@ -55,7 +45,7 @@ def _load_raw_csvs() -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
         if path.stat().st_size == 0:
             raise ValueError(f"{label} is empty: {path}")
 
-    print("Loading raw data...")
+    logger.info("Loading raw data...")
     # The canonical Elliptic features CSV ships WITHOUT a header row (165
     # unnamed feature columns). Detect this and assign the expected column
     # names so downstream code can reference txId / time_step / feat_*.
@@ -65,7 +55,7 @@ def _load_raw_csvs() -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
         feat_cols = [f"feat_{i}" for i in range(n_feats)]
         header = ["txId", "time_step"] + feat_cols
         df_features = pd.read_csv(ELLIPTIC_FEATURES_CSV, names=header)
-        print(f"  features.csv had no header; assigned {len(header)} columns")
+        logger.info(f"  features.csv had no header; assigned {len(header)} columns")
     else:
         df_features = pd.read_csv(ELLIPTIC_FEATURES_CSV)
     df_classes = pd.read_csv(ELLIPTIC_CLASSES_CSV)
@@ -82,7 +72,7 @@ def _load_raw_csvs() -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
 def build_graph(force: bool = False):
     """Load raw CSVs and build a PyG Data object with time-based masks."""
     if GRAPH_DATA_PT.exists() and not force:
-        print(f"Graph data already exists at {GRAPH_DATA_PT}. Use --force to rebuild.")
+        logger.info(f"Graph data already exists at {GRAPH_DATA_PT}. Use --force to rebuild.")
         return
 
     df_features, df_classes, df_edges = _load_raw_csvs()
@@ -150,7 +140,7 @@ def build_graph(force: bool = False):
     valid_mask = df_edges["txId1"].isin(known) & df_edges["txId2"].isin(known)
     if not valid_mask.all():
         dropped = len(df_edges) - valid_mask.sum()
-        print(f"  Dropping {dropped} edges referencing txIds absent from features")
+        logger.info(f"  Dropping {dropped} edges referencing txIds absent from features")
         df_edges = df_edges[valid_mask]
     src = df_edges["txId1"].map(tx_id_to_idx).to_numpy()
     dst = df_edges["txId2"].map(tx_id_to_idx).to_numpy()
@@ -188,12 +178,12 @@ def build_graph(force: bool = False):
     with open(PROCESSED_DATA_DIR / "metadata.json", "w") as f:
         json.dump(metadata, f, indent=2)
 
-    print("Built graph:")
-    print(f"  Nodes: {data.num_nodes}")
-    print(f"  Edges: {data.num_edges}")
-    print(f"  Features: {data.num_features}")
-    print(f"  Train/Val/Test: {train_mask.sum()}/{val_mask.sum()}/{test_mask.sum()}")
-    print(f"  Saved to: {GRAPH_DATA_PT}")
+    logger.info("Built graph:")
+    logger.info(f"  Nodes: {data.num_nodes}")
+    logger.info(f"  Edges: {data.num_edges}")
+    logger.info(f"  Features: {data.num_features}")
+    logger.info(f"  Train/Val/Test: {train_mask.sum()}/{val_mask.sum()}/{test_mask.sum()}")
+    logger.info(f"  Saved to: {GRAPH_DATA_PT}")
 
 
 def main():
@@ -204,4 +194,5 @@ def main():
 
 
 if __name__ == "__main__":
+    setup_logging()
     main()

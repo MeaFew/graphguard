@@ -19,27 +19,18 @@ from sklearn.metrics import (
 )
 from sklearn.neural_network import MLPClassifier
 
-try:
-    from config import (
-        GRAPH_DATA_PT,
-        METRICS_JSON,
-        MLP_MODEL_PATH,
-        MODELS_DIR,
-        RANDOM_STATE,
-        REPORTS_DIR,
-        XGB_MODEL_PATH,
-    )
-except ImportError:
-    sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
-    from config import (
-        GRAPH_DATA_PT,
-        METRICS_JSON,
-        MLP_MODEL_PATH,
-        MODELS_DIR,
-        RANDOM_STATE,
-        REPORTS_DIR,
-        XGB_MODEL_PATH,
-    )
+from graphguard.config import (
+    GRAPH_DATA_PT,
+    METRICS_JSON,
+    MLP_MODEL_PATH,
+    MODELS_DIR,
+    RANDOM_STATE,
+    REPORTS_DIR,
+    XGB_MODEL_PATH,
+)
+from graphguard.logging_setup import get_logger, setup_logging
+
+logger = get_logger(__name__)
 
 
 def load_data():
@@ -95,7 +86,7 @@ def evaluate_model(model, x, y, mask, model_name: str, split: str, threshold=Non
 
 
 def train_mlp(x, y, train_mask, val_mask):
-    print("Training MLP baseline...")
+    logger.info("Training MLP baseline...")
     MODELS_DIR.mkdir(parents=True, exist_ok=True)
 
     model = MLPClassifier(
@@ -120,12 +111,12 @@ def train_mlp(x, y, train_mask, val_mask):
     # eval_set behavior.
     model.fit(x[train_mask], y[train_mask])
     joblib.dump(model, MLP_MODEL_PATH)
-    print(f"  Saved: {MLP_MODEL_PATH}")
+    logger.info(f"  Saved: {MLP_MODEL_PATH}")
     return model
 
 
 def train_xgboost(x, y, train_mask, val_mask):
-    print("Training XGBoost baseline...")
+    logger.info("Training XGBoost baseline...")
     MODELS_DIR.mkdir(parents=True, exist_ok=True)
 
     scale_pos_weight = float((y[train_mask] == 0).sum() / (y[train_mask] == 1).sum())
@@ -149,7 +140,7 @@ def train_xgboost(x, y, train_mask, val_mask):
         verbose=False,
     )
     joblib.dump(model, XGB_MODEL_PATH)
-    print(f"  Saved: {XGB_MODEL_PATH}")
+    logger.info(f"  Saved: {XGB_MODEL_PATH}")
     return model
 
 
@@ -157,7 +148,7 @@ def train_both(force: bool = False):
     if METRICS_JSON.exists() and not force:
         # Only skip if all baseline model files exist too
         if MLP_MODEL_PATH.exists() and XGB_MODEL_PATH.exists():
-            print("Baselines already trained. Use --force to retrain.")
+            logger.info("Baselines already trained. Use --force to retrain.")
             return
 
     x, y, train_mask, val_mask, test_mask = load_data()
@@ -191,9 +182,9 @@ def train_both(force: bool = False):
     with open(METRICS_JSON, "w") as f:
         json.dump(existing, f, indent=2)
 
-    print("\nBaseline test metrics:")
+    logger.info("\nBaseline test metrics:")
     for m in metrics:
-        print(
+        logger.info(
             f"  {m['model']:10s}  ROC-AUC: {m['roc_auc']:.4f}  "
             f"AP: {m['average_precision']:.4f}  F1: {m['f1']:.4f}  "
             f"(threshold={m['threshold']:.3f}, tuned on val)"
@@ -208,4 +199,5 @@ def main():
 
 
 if __name__ == "__main__":
+    setup_logging()
     main()

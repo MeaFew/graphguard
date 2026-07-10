@@ -8,9 +8,7 @@ import pandas as pd
 import plotly.express as px
 import streamlit as st
 
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
-
-from config import COMPARISON_CSV, METRICS_JSON, ROC_CURVE_PNG
+from graphguard.config import COMPARISON_CSV, METRICS_JSON, ROC_CURVE_PNG
 
 st.set_page_config(page_title="GraphGuard", layout="wide")
 

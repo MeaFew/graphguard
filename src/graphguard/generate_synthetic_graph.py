@@ -21,6 +21,10 @@ import numpy as np
 import pandas as pd
 from sklearn.preprocessing import StandardScaler
 
+from graphguard.logging_setup import get_logger, setup_logging
+
+logger = get_logger(__name__)
+
 
 def generate_synthetic_data(
     n_nodes: int = 20_000,
@@ -36,7 +40,7 @@ def generate_synthetic_data(
     rng = np.random.default_rng(random_seed)
 
     if output_dir is None:
-        from config import RAW_DATA_DIR
+        from graphguard.config import RAW_DATA_DIR
 
         output_dir = RAW_DATA_DIR
     output_dir.mkdir(parents=True, exist_ok=True)
@@ -123,14 +127,14 @@ def generate_synthetic_data(
     df_classes.to_csv(output_dir / "elliptic_txs_classes.csv", index=False)
     df_edges.to_csv(output_dir / "elliptic_txs_edgelist.csv", index=False)
 
-    print("Generated synthetic graph:")
-    print(f"  Nodes: {n_nodes}")
-    print(f"  Edges: {len(df_edges)}")
-    print(f"  Illicit: {illicit_mask.sum()} ({illicit_mask.mean() * 100:.1f}%)")
-    print(f"  Licit: {licit_mask.sum()} ({licit_mask.mean() * 100:.1f}%)")
-    print(f"  Unknown: {n_unknown} ({n_unknown / n_nodes * 100:.1f}%)")
-    print(f"  Time steps: 1-{n_time_steps}")
-    print(f"Saved to: {output_dir}")
+    logger.info("Generated synthetic graph:")
+    logger.info(f"  Nodes: {n_nodes}")
+    logger.info(f"  Edges: {len(df_edges)}")
+    logger.info(f"  Illicit: {illicit_mask.sum()} ({illicit_mask.mean() * 100:.1f}%)")
+    logger.info(f"  Licit: {licit_mask.sum()} ({licit_mask.mean() * 100:.1f}%)")
+    logger.info(f"  Unknown: {n_unknown} ({n_unknown / n_nodes * 100:.1f}%)")
+    logger.info(f"  Time steps: 1-{n_time_steps}")
+    logger.info(f"Saved to: {output_dir}")
 
 
 def main():
@@ -152,4 +156,5 @@ def main():
 
 
 if __name__ == "__main__":
+    setup_logging()
     main()

@@ -38,16 +38,13 @@ import torch
 from torch_geometric.explain import Explainer, GNNExplainer
 from torch_geometric.utils import k_hop_subgraph
 
-# 先 import config 注册 safe globals（config.py 末尾 add_safe_globals），否则
-# weights_only=True 加载 graph_data.pt 会因 DataEdgeAttr 未白名单而失败。
-try:
-    import config
-except ImportError:
-    sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
-    import config
+# config registers safe globals (config.py add_safe_globals) so weights_only=True
+# loading of graph_data.pt works.
+import graphguard.config as config
+from graphguard.logging_setup import get_logger, setup_logging
+from graphguard.train_gnn import GraphSAGE
 
-sys.path.insert(0, str(Path(__file__).resolve().parent))
-from train_gnn import GraphSAGE  # noqa: E402
+logger = get_logger(__name__)
 
 # ── 配置（从 config 读取，便于集中调参） ─────────────────────────────
 HOPS = config.EXPLAINER_HOPS
@@ -521,7 +518,7 @@ def main():
     args = parser.parse_args()
 
     device = torch.device(config.DEVICE if torch.cuda.is_available() else "cpu")
-    print(f"Using device: {device}")
+    logger.info(f"Using device: {device}")
 
     OUT_DIR.mkdir(parents=True, exist_ok=True)
 
@@ -530,14 +527,14 @@ def main():
 
     # ---- 1) 选取 TP 节点（rank-based + 结构感知配额）----
     chosen, chosen_probs, sel_meta = select_tp_nodes(probs, data, args.num_nodes)
-    print(f"\n选定 {len(chosen)} 个高置信度 illicit TP 节点（test split 内 rank-based）。")
+    logger.info(f"\n选定 {len(chosen)} 个高置信度 illicit TP 节点（test split 内 rank-based）。")
     if len(chosen) < args.num_nodes:
-        print(f"  注意：test illicit 总数不足 {args.num_nodes}，实际取 {len(chosen)} 个。")
-    print(
+        logger.info(f"  注意：test illicit 总数不足 {args.num_nodes}，实际取 {len(chosen)} 个。")
+    logger.info(
         f"  结构化(有入边): {sel_meta['n_structured_chosen']}，"
         f"孤立(纯特征): {sel_meta['n_isolated_chosen']}"
     )
-    print(
+    logger.info(
         f"  prob 范围: [{min(chosen_probs):.4f}, {max(chosen_probs):.4f}]，"
         f"中位 {float(np.median(chosen_probs)):.4f}"
     )
@@ -550,26 +547,26 @@ def main():
         r = explain_node(node_idx, model, data, explainer, device)
         results.append(r)
         tag = "isolated(feature-only)" if r["isolated"] else f"sub_prob={r['sub_prob']:.3f}"
-        print(f"  [{i + 1}/{len(chosen)}] node {node_idx} prob={chosen_probs[i]:.4f} {tag}")
+        logger.info(f"  [{i + 1}/{len(chosen)}] node {node_idx} prob={chosen_probs[i]:.4f} {tag}")
 
     # ---- 3) 可视化 ----
     viz_paths = []
     if not args.no_viz:
-        print("\n生成子图可视化...")
+        logger.info("\n生成子图可视化...")
         for i, (node_idx, r) in enumerate(zip(chosen, results)):
             out_path = OUT_DIR / f"node_{node_idx}.png"
             visualize_subgraph(r, data, probs, out_path)
             viz_paths.append(str(out_path.relative_to(config.BASE_DIR)))
-        print(f"  已保存 {len(viz_paths)} 张子图到 {OUT_DIR}")
+        logger.info(f"  已保存 {len(viz_paths)} 张子图到 {OUT_DIR}")
 
     # ---- 4) 聚合分析 ----
-    print("\n聚合分析...")
+    logger.info("\n聚合分析...")
     agg = aggregate_analysis(results, data, probs)
-    print("  关键邻居标签加权占比:", agg["neighbor_label_weighted_share"])
-    print("  关键邻居标签计数:", agg["neighbor_label_counts"])
-    print(f"  无入边（纯特征）节点: {agg['n_isolated_feature_only']}/{agg['n_explained']}")
+    logger.info("  关键邻居标签加权占比:", agg["neighbor_label_weighted_share"])
+    logger.info("  关键邻居标签计数:", agg["neighbor_label_counts"])
+    logger.info(f"  无入边（纯特征）节点: {agg['n_isolated_feature_only']}/{agg['n_explained']}")
     if agg["top_global_feature_dims"]:
-        print(
+        logger.info(
             "  全局 top-5 重要特征维度:",
             [(d["feature_dim"], d["importance"]) for d in agg["top_global_feature_dims"][:5]],
         )
@@ -615,9 +612,10 @@ def main():
         "visualization_pngs": viz_paths,
     }
     SUMMARY_JSON.write_text(json.dumps(summary, indent=2, ensure_ascii=False))
-    print(f"\n聚合摘要写入 {SUMMARY_JSON.relative_to(config.BASE_DIR)}")
-    print("完成。")
+    logger.info(f"\n聚合摘要写入 {SUMMARY_JSON.relative_to(config.BASE_DIR)}")
+    logger.info("完成。")
 
 
 if __name__ == "__main__":
+    setup_logging()
     main()

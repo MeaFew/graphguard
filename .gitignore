@@ -23,6 +23,7 @@ wheels/
 # Virtual environments
 .env
 .venv/
+.venv-*
 venv/
 env/
 ENV/
@@ -39,17 +40,20 @@ ENV/
 Thumbs.db
 
 # Data and models (large files)
-data/raw/*.csv
-data/processed/*.pt
-data/processed/*.pkl
-data/processed/*.json
-models/*.pt
-models/*.joblib
+# Patterns are unrooted so they match data/models/reports no matter where they
+# live (repo root OR src/graphguard/). This prevents accidentally committing
+# generated artifacts under the package tree.
+**/data/raw/*.csv
+**/data/processed/*.pt
+**/data/processed/*.pkl
+**/data/processed/*.json
+**/models/*.pt
+**/models/*.joblib
 
 # Reports (generated)
-reports/*.png
-reports/*.json
-reports/*.csv
+**/reports/*.png
+**/reports/*.json
+**/reports/*.csv
 
 # Logs
 *.log

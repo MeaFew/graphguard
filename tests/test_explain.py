@@ -22,12 +22,10 @@ from torch_geometric.data import Data
 from torch_geometric.explain import Explainer, GNNExplainer
 from torch_geometric.nn import SAGEConv
 
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
-import config  # noqa: E402  — must register safe globals before any weights_only load
+import graphguard.config as config  # noqa: E402  — must register safe globals before any weights_only load
 
 # 让测试也能 import scripts 下的模块
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "scripts"))
-from explain_gnn import select_tp_nodes, subgraph_prob  # noqa: E402
+from graphguard.explain_gnn import select_tp_nodes, subgraph_prob  # noqa: E402
 
 
 # ── 合成小图 + 简单 SAGE，供 Explainer 接入与 faithfulness 测试共用 ─────────

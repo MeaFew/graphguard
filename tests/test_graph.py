@@ -7,10 +7,8 @@ import numpy as np
 import pytest
 import torch
 
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
-
-from config import GRAPH_DATA_PT
-from scripts.train_gnn import GAT, GCN, GIN, GraphSAGE
+from graphguard.config import GRAPH_DATA_PT
+from graphguard.train_gnn import GAT, GCN, GIN, GraphSAGE
 
 
 def test_graph_data_exists():
@@ -100,7 +98,7 @@ class TestLeakagePrevention:
         reach into val/test timesteps. We reconstruct the train subgraph edge
         filter from build_graph's logic and assert every edge's endpoints are
         <= the train max timestep."""
-        from config import TRAIN_TIME_STEPS
+        from graphguard.config import TRAIN_TIME_STEPS
 
         data = torch.load(GRAPH_DATA_PT, weights_only=True)
         ts = data.time_step
@@ -122,7 +120,7 @@ class TestLeakagePrevention:
         Read the source and assert the fit call uses only train_mask — this is
         a static guard against re-introducing the unfair protocol that gave the
         MLP an edge over XGBoost."""
-        src = Path(__file__).resolve().parent.parent / "scripts" / "train_baseline.py"
+        src = Path(__file__).resolve().parent.parent / "src" / "graphguard" / "train_baseline.py"
         text = src.read_text(encoding="utf-8")
         # The MLP fit call must NOT include val_mask in its indexing.
         assert "train_mask | val_mask" not in text, (

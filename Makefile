@@ -1,4 +1,4 @@
-.PHONY: all setup data baselines gnn evaluate explain test lint format format-check verify dashboard clean
+.PHONY: all setup data baselines gnn evaluate explain test typecheck lint format format-check verify dashboard clean
 
 PYTHON := python
 
@@ -9,46 +9,46 @@ all: data baselines gnn evaluate explain test
 setup:
 	pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu121
 	pip install -r requirements.txt
+	pip install -e ".[dev]"
+	pre-commit install
 
 # ── Data pipeline ─────────────────────────────────────────────────
 data:
-	$(PYTHON) scripts/download_data.py
-	$(PYTHON) scripts/build_graph.py
+	$(PYTHON) -m graphguard.download_data
+	$(PYTHON) -m graphguard.build_graph
 
 # ── Modeling ──────────────────────────────────────────────────────
 baselines:
-	$(PYTHON) scripts/train_baseline.py
+	$(PYTHON) -m graphguard.train_baseline
 
 gnn:
-	$(PYTHON) scripts/train_gnn.py --model all
+	$(PYTHON) -m graphguard.train_gnn --model all
 
 # ── Evaluation ────────────────────────────────────────────────────
 evaluate:
-	$(PYTHON) scripts/evaluate.py
+	$(PYTHON) -m graphguard.evaluate
 
-# ── GNN 可解释性（GNNExplainer） ───────────────────────────────────
-# 对高置信度 illicit 真阳性做解释，输出关键子图 PNG + 聚合统计 JSON。
-# 这是金融合规视角的"深度记忆点"：回答"为什么这笔交易被判欺诈"。
+# ── GNN explainability (GNNExplainer) ─────────────────────────────
 explain:
-	$(PYTHON) scripts/explain_gnn.py
+	$(PYTHON) -m graphguard.explain_gnn
 
 # ── Quality gates ─────────────────────────────────────────────────
 test:
-	$(PYTHON) -m pytest tests/ -q
+	$(PYTHON) -m pytest tests/ -q --cov=graphguard --cov-report=term-missing --cov-fail-under=15
+
+typecheck:
+	mypy src/graphguard
 
 lint:
-	ruff check scripts/ tests/ dashboard/
+	ruff check src/ tests/ dashboard/
 
 format:
-	ruff format scripts/ tests/ dashboard/
+	ruff format src/ tests/ dashboard/
 
 format-check:
-	ruff format --check scripts/ tests/ dashboard/
+	ruff format --check src/ tests/ dashboard/
 
-# Full local quality gate (lint + format-check + test). Mirrors the
-# CONTRIBUTING.md instructions; test requires a built graph_data.pt
-# (run `make data` first) and the torch/torch-geometric stack.
-verify: lint format-check test
+verify: lint format-check typecheck test
 	@echo "All quality gates passed"
 
 # ── Dashboard ─────────────────────────────────────────────────────

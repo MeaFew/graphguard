@@ -5,14 +5,12 @@ can run end-to-end without API credentials.
 """
 
 import shutil
-import sys
 from pathlib import Path
 
-try:
-    from config import RAW_DATA_DIR
-except ImportError:
-    sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
-    from config import RAW_DATA_DIR
+from graphguard.config import RAW_DATA_DIR
+from graphguard.logging_setup import get_logger, setup_logging
+
+logger = get_logger(__name__)
 
 
 def download_from_kaggle(output_dir: Path) -> bool:
@@ -31,9 +29,9 @@ def download_from_kaggle(output_dir: Path) -> bool:
     try:
         import kagglehub
 
-        print("Attempting to download Elliptic Data Set from Kaggle...")
+        logger.info("Attempting to download Elliptic Data Set from Kaggle...")
         cache_dir = kagglehub.dataset_download("ellipticco/elliptic-data-set")
-        print(f"Downloaded to cache: {cache_dir}")
+        logger.info(f"Downloaded to cache: {cache_dir}")
 
         required_files = {
             "elliptic_txs_features.csv": output_dir / "elliptic_txs_features.csv",
@@ -54,25 +52,25 @@ def download_from_kaggle(output_dir: Path) -> bool:
                     continue
                 src = candidates[0]
             shutil.copy2(src, dest)
-            print(f"  Copied {fname} -> {dest}")
+            logger.info(f"  Copied {fname} -> {dest}")
 
         if missing:
-            print(f"Kaggle download failed: missing required files {missing}")
+            logger.info(f"Kaggle download failed: missing required files {missing}")
             return False
         return True
     except ImportError:
-        print("Kaggle download failed: 'kagglehub' is not installed.")
-        print("  Fix: pip install kagglehub  (and configure Kaggle credentials).")
+        logger.info("Kaggle download failed: 'kagglehub' is not installed.")
+        logger.info("  Fix: pip install kagglehub  (and configure Kaggle credentials).")
         return False
     except (OSError, ConnectionError) as e:
         # OSError covers network/socket errors raised by the underlying HTTP
         # client on connection failures.
-        print(f"Kaggle download failed (network): {type(e).__name__}: {e}")
+        logger.info(f"Kaggle download failed (network): {type(e).__name__}: {e}")
         return False
     except RuntimeError as e:
         # kagglehub raises RuntimeError for credential / HTTP-status problems.
-        print(f"Kaggle download failed (credentials/server): {type(e).__name__}: {e}")
-        print("  Set KAGGLE_USERNAME/KAGGLE_KEY or place ~/.kaggle/kaggle.json.")
+        logger.info(f"Kaggle download failed (credentials/server): {type(e).__name__}: {e}")
+        logger.info("  Set KAGGLE_USERNAME/KAGGLE_KEY or place ~/.kaggle/kaggle.json.")
         return False
 
 
@@ -87,22 +85,23 @@ def main():
         output_dir / "elliptic_txs_classes.csv",
     ]
     if all(f.exists() for f in required):
-        print("Elliptic data files already exist. Skipping download.")
+        logger.info("Elliptic data files already exist. Skipping download.")
         return
 
     if not download_from_kaggle(output_dir):
         # Make the synthetic fallback LOUD and unmissable: any results obtained on
         # the synthetic graph are not representative of the real Elliptic task,
         # so a user must not unknowingly train on it.
-        print("\n" + "=" * 72)
-        print("WARNING: REAL DATA NOT AVAILABLE — generating a SYNTHETIC graph.")
-        print("Synthetic results are NOT comparable to the real Elliptic benchmark.")
-        print("Configure Kaggle credentials and re-run to use the real dataset.")
-        print("=" * 72 + "\n")
-        from scripts.generate_synthetic_graph import generate_synthetic_data
+        logger.info("\n" + "=" * 72)
+        logger.info("WARNING: REAL DATA NOT AVAILABLE — generating a SYNTHETIC graph.")
+        logger.info("Synthetic results are NOT comparable to the real Elliptic benchmark.")
+        logger.info("Configure Kaggle credentials and re-run to use the real dataset.")
+        logger.info("=" * 72 + "\n")
+        from graphguard.generate_synthetic_graph import generate_synthetic_data
 
         generate_synthetic_data(output_dir=output_dir)
 
 
 if __name__ == "__main__":
+    setup_logging()
     main()

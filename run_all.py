@@ -29,12 +29,12 @@ def main():
     here = Path(__file__).resolve().parent
 
     steps = [
-        ("Download / generate data", [PYTHON, "scripts/download_data.py"]),
-        ("Build graph", [PYTHON, "scripts/build_graph.py"]),
-        ("Train baselines", [PYTHON, "scripts/train_baseline.py"]),
-        ("Train GNNs", [PYTHON, "scripts/train_gnn.py", "--model", "all"]),
-        ("Evaluate", [PYTHON, "scripts/evaluate.py"]),
-        ("GNN explainability", [PYTHON, "scripts/explain_gnn.py"]),
+        ("Download / generate data", [PYTHON, "-m", "graphguard.download_data"]),
+        ("Build graph", [PYTHON, "-m", "graphguard.build_graph"]),
+        ("Train baselines", [PYTHON, "-m", "graphguard.train_baseline"]),
+        ("Train GNNs", [PYTHON, "-m", "graphguard.train_gnn", "--model", "all"]),
+        ("Evaluate", [PYTHON, "-m", "graphguard.evaluate"]),
+        ("GNN explainability", [PYTHON, "-m", "graphguard.explain_gnn"]),
         ("Test", [PYTHON, "-m", "pytest", "tests/", "-q"]),
     ]
 
