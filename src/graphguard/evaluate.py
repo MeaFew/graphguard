@@ -40,7 +40,6 @@ from graphguard.config import (
     XGB_MODEL_PATH,
 )
 from graphguard.logging_setup import get_logger, setup_logging
-
 from graphguard.train_gnn import GAT, GCN, GIN, GraphSAGE
 
 logger = get_logger(__name__)
