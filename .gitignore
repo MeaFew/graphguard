@@ -54,6 +54,11 @@ Thumbs.db
 **/reports/*.png
 **/reports/*.json
 **/reports/*.csv
+!reports/metrics.json
+!reports/model_comparison.csv
+!reports/explanation_summary.json
+!reports/roc_curves.png
+!reports/pr_curves.png
 
 # Logs
 *.log

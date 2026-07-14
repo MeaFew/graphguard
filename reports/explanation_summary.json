@@ -1,0 +1,589 @@
+{
+  "model": "GraphSAGE",
+  "model_path": "models\\sage_model.pt",
+  "methodology": {
+    "explainer": "GNNExplainer (PyG 2.8 torch_geometric.explain)",
+    "explanation_type": "model",
+    "edge_mask_type": "object",
+    "node_mask_type": "attributes",
+    "hops": 2,
+    "flow": "source_to_target",
+    "epochs": 100,
+    "lr": 0.01,
+    "selection": "rank-based: 在 test_split & y==1 节点中按模型预测 prob 降序取前 N。因 test AP 仅 0.062、模型在 test 上极度欠自信（中位 prob ~0.03，仅 ~2 个 ≥0.5），采用 rank 而非绝对阈值，语义为'模型最确信的 TP'。叠加结构感知配额：至少 ceil(N/2) 个被解释节点须有入边（否则 GNNExplainer 无子图可解释）。",
+    "selection_meta": {
+      "n_total_test_illicit": 169,
+      "n_structured_chosen": 20,
+      "n_isolated_chosen": 20,
+      "note": "rank-based selection with a structure-aware quota: at least ceil(N/2) explained nodes are required to have incoming edges (otherwise GNNExplainer has no subgraph to explain). Isolated nodes are kept to honestly show how often the prediction is feature-only."
+    },
+    "top_k_edges_per_node": 8
+  },
+  "n_explained": 40,
+  "explained_node_probs": {
+    "179187": 0.99885,
+    "201532": 0.9679,
+    "199801": 0.40465,
+    "200582": 0.36209,
+    "196077": 0.34127,
+    "175287": 0.34005,
+    "200938": 0.33733,
+    "200468": 0.30793,
+    "199503": 0.29879,
+    "178922": 0.28139,
+    "180179": 0.27826,
+    "199662": 0.25989,
+    "202511": 0.2248,
+    "175905": 0.2189,
+    "202697": 0.1936,
+    "200725": 0.18001,
+    "201032": 0.17233,
+    "190979": 0.16769,
+    "202742": 0.1674,
+    "195920": 0.15223,
+    "195284": 0.15063,
+    "198853": 0.14165,
+    "200951": 0.13763,
+    "178155": 0.12651,
+    "186137": 0.08855,
+    "195921": 0.08362,
+    "175012": 0.07408,
+    "176446": 0.0698,
+    "194257": 0.06904,
+    "178721": 0.04214,
+    "183181": 0.03911,
+    "174515": 0.0342,
+    "196136": 0.02837,
+    "189916": 0.02339,
+    "176073": 0.0208,
+    "174527": 0.01875,
+    "203174": 0.01465,
+    "197729": 0.012,
+    "180826": 0.01127,
+    "197047": 0.01088
+  },
+  "aggregate": {
+    "n_explained": 40,
+    "n_isolated_feature_only": 20,
+    "neighbor_label_weighted_share": {
+      "illicit": 0.2425,
+      "licit": 0.0763,
+      "unknown": 0.6812
+    },
+    "neighbor_label_counts": {
+      "illicit": 19,
+      "licit": 5,
+      "unknown": 53
+    },
+    "target_node_feature_mean": 0.09586,
+    "key_neighbor_feature_mean": 0.14935,
+    "top_global_feature_dims": [
+      {
+        "feature_dim": 136,
+        "importance": 0.43862
+      },
+      {
+        "feature_dim": 90,
+        "importance": 0.38738
+      },
+      {
+        "feature_dim": 165,
+        "importance": 0.37733
+      },
+      {
+        "feature_dim": 100,
+        "importance": 0.37572
+      },
+      {
+        "feature_dim": 138,
+        "importance": 0.37354
+      },
+      {
+        "feature_dim": 135,
+        "importance": 0.36769
+      },
+      {
+        "feature_dim": 102,
+        "importance": 0.35422
+      },
+      {
+        "feature_dim": 159,
+        "importance": 0.35357
+      },
+      {
+        "feature_dim": 149,
+        "importance": 0.34969
+      },
+      {
+        "feature_dim": 99,
+        "importance": 0.348
+      }
+    ],
+    "interpretation_notes": [
+      "neighbor_label_weighted_share: 关键邻居（按解释重要性加权）中各标签占比。若 illicit 占比显著高于图先验（illicit ~2%），说明欺诈呈团伙聚集。",
+      "n_isolated_feature_only: 无入边前驱、预测纯由自身特征驱动的节点数。占比高意味着模型对相当一部分欺诈的判定不依赖图结构——这对'图结构带来增益'的叙事是个诚实的限定。",
+      "top_global_feature_dims: 跨所有解释节点聚合后最重要的特征维度（Elliptic 特征匿名，无法给出业务语义，但可用于特征工程迭代方向）。"
+    ]
+  },
+  "per_node": [
+    {
+      "node_idx": 179187,
+      "isolated": false,
+      "sub_prob": 0.9988511800765991,
+      "n_subgraph_nodes": 93,
+      "n_subgraph_edges": 105,
+      "top_edge_importances": [
+        0.29485952854156494,
+        0.2925763726234436,
+        0.28709182143211365,
+        0.28350698947906494,
+        0.2789308726787567,
+        0.2726333737373352,
+        0.2717304229736328,
+        0.271146297454834
+      ]
+    },
+    {
+      "node_idx": 201532,
+      "isolated": false,
+      "sub_prob": 0.9679012894630432,
+      "n_subgraph_nodes": 27,
+      "n_subgraph_edges": 26,
+      "top_edge_importances": [
+        0.8213486671447754,
+        0.8180142641067505,
+        0.817236065864563,
+        0.813129723072052,
+        0.8122974038124084,
+        0.8118664622306824,
+        0.807845950126648,
+        0.8072121739387512
+      ]
+    },
+    {
+      "node_idx": 199801,
+      "isolated": true,
+      "sub_prob": null,
+      "n_subgraph_nodes": 1,
+      "n_subgraph_edges": 0,
+      "top_edge_importances": []
+    },
+    {
+      "node_idx": 200582,
+      "isolated": true,
+      "sub_prob": null,
+      "n_subgraph_nodes": 1,
+      "n_subgraph_edges": 0,
+      "top_edge_importances": []
+    },
+    {
+      "node_idx": 196077,
+      "isolated": true,
+      "sub_prob": null,
+      "n_subgraph_nodes": 1,
+      "n_subgraph_edges": 0,
+      "top_edge_importances": []
+    },
+    {
+      "node_idx": 175287,
+      "isolated": true,
+      "sub_prob": null,
+      "n_subgraph_nodes": 1,
+      "n_subgraph_edges": 0,
+      "top_edge_importances": []
+    },
+    {
+      "node_idx": 200938,
+      "isolated": true,
+      "sub_prob": null,
+      "n_subgraph_nodes": 1,
+      "n_subgraph_edges": 0,
+      "top_edge_importances": []
+    },
+    {
+      "node_idx": 200468,
+      "isolated": true,
+      "sub_prob": null,
+      "n_subgraph_nodes": 1,
+      "n_subgraph_edges": 0,
+      "top_edge_importances": []
+    },
+    {
+      "node_idx": 199503,
+      "isolated": true,
+      "sub_prob": null,
+      "n_subgraph_nodes": 1,
+      "n_subgraph_edges": 0,
+      "top_edge_importances": []
+    },
+    {
+      "node_idx": 178922,
+      "isolated": true,
+      "sub_prob": null,
+      "n_subgraph_nodes": 1,
+      "n_subgraph_edges": 0,
+      "top_edge_importances": []
+    },
+    {
+      "node_idx": 180179,
+      "isolated": true,
+      "sub_prob": null,
+      "n_subgraph_nodes": 1,
+      "n_subgraph_edges": 0,
+      "top_edge_importances": []
+    },
+    {
+      "node_idx": 199662,
+      "isolated": true,
+      "sub_prob": null,
+      "n_subgraph_nodes": 1,
+      "n_subgraph_edges": 0,
+      "top_edge_importances": []
+    },
+    {
+      "node_idx": 202511,
+      "isolated": true,
+      "sub_prob": null,
+      "n_subgraph_nodes": 1,
+      "n_subgraph_edges": 0,
+      "top_edge_importances": []
+    },
+    {
+      "node_idx": 175905,
+      "isolated": true,
+      "sub_prob": null,
+      "n_subgraph_nodes": 1,
+      "n_subgraph_edges": 0,
+      "top_edge_importances": []
+    },
+    {
+      "node_idx": 202697,
+      "isolated": true,
+      "sub_prob": null,
+      "n_subgraph_nodes": 1,
+      "n_subgraph_edges": 0,
+      "top_edge_importances": []
+    },
+    {
+      "node_idx": 200725,
+      "isolated": true,
+      "sub_prob": null,
+      "n_subgraph_nodes": 1,
+      "n_subgraph_edges": 0,
+      "top_edge_importances": []
+    },
+    {
+      "node_idx": 201032,
+      "isolated": true,
+      "sub_prob": null,
+      "n_subgraph_nodes": 1,
+      "n_subgraph_edges": 0,
+      "top_edge_importances": []
+    },
+    {
+      "node_idx": 190979,
+      "isolated": true,
+      "sub_prob": null,
+      "n_subgraph_nodes": 1,
+      "n_subgraph_edges": 0,
+      "top_edge_importances": []
+    },
+    {
+      "node_idx": 202742,
+      "isolated": false,
+      "sub_prob": 0.16739897429943085,
+      "n_subgraph_nodes": 2,
+      "n_subgraph_edges": 1,
+      "top_edge_importances": [
+        0.19540661573410034
+      ]
+    },
+    {
+      "node_idx": 195920,
+      "isolated": true,
+      "sub_prob": null,
+      "n_subgraph_nodes": 1,
+      "n_subgraph_edges": 0,
+      "top_edge_importances": []
+    },
+    {
+      "node_idx": 195284,
+      "isolated": true,
+      "sub_prob": null,
+      "n_subgraph_nodes": 1,
+      "n_subgraph_edges": 0,
+      "top_edge_importances": []
+    },
+    {
+      "node_idx": 198853,
+      "isolated": true,
+      "sub_prob": null,
+      "n_subgraph_nodes": 1,
+      "n_subgraph_edges": 0,
+      "top_edge_importances": []
+    },
+    {
+      "node_idx": 200951,
+      "isolated": true,
+      "sub_prob": null,
+      "n_subgraph_nodes": 1,
+      "n_subgraph_edges": 0,
+      "top_edge_importances": []
+    },
+    {
+      "node_idx": 178155,
+      "isolated": false,
+      "sub_prob": 0.1265123337507248,
+      "n_subgraph_nodes": 4,
+      "n_subgraph_edges": 3,
+      "top_edge_importances": [
+        0.8320087790489197,
+        0.20358435809612274,
+        0.1544153243303299
+      ]
+    },
+    {
+      "node_idx": 186137,
+      "isolated": false,
+      "sub_prob": 0.08855150640010834,
+      "n_subgraph_nodes": 3,
+      "n_subgraph_edges": 2,
+      "top_edge_importances": [
+        0.7489015460014343,
+        0.09611321240663528
+      ]
+    },
+    {
+      "node_idx": 195921,
+      "isolated": false,
+      "sub_prob": 0.08361784368753433,
+      "n_subgraph_nodes": 2,
+      "n_subgraph_edges": 1,
+      "top_edge_importances": [
+        0.20009347796440125
+      ]
+    },
+    {
+      "node_idx": 175012,
+      "isolated": false,
+      "sub_prob": 0.07408156245946884,
+      "n_subgraph_nodes": 12,
+      "n_subgraph_edges": 11,
+      "top_edge_importances": [
+        0.8631738424301147,
+        0.8394376039505005,
+        0.830954372882843,
+        0.8111702799797058,
+        0.8087537288665771,
+        0.7780606746673584,
+        0.6812472939491272,
+        0.5608823299407959
+      ]
+    },
+    {
+      "node_idx": 176446,
+      "isolated": false,
+      "sub_prob": 0.06979799270629883,
+      "n_subgraph_nodes": 10,
+      "n_subgraph_edges": 9,
+      "top_edge_importances": [
+        0.8320175409317017,
+        0.814784824848175,
+        0.8005154728889465,
+        0.6643467545509338,
+        0.21031562983989716,
+        0.20549486577510834,
+        0.1944703906774521,
+        0.1560002714395523
+      ]
+    },
+    {
+      "node_idx": 194257,
+      "isolated": false,
+      "sub_prob": 0.06904421001672745,
+      "n_subgraph_nodes": 7,
+      "n_subgraph_edges": 6,
+      "top_edge_importances": [
+        0.8307764530181885,
+        0.8285550475120544,
+        0.8163789510726929,
+        0.8023287653923035,
+        0.8007500767707825,
+        0.15336443483829498
+      ]
+    },
+    {
+      "node_idx": 178721,
+      "isolated": false,
+      "sub_prob": 0.04214257001876831,
+      "n_subgraph_nodes": 9,
+      "n_subgraph_edges": 8,
+      "top_edge_importances": [
+        0.8457117676734924,
+        0.8106794953346252,
+        0.8014253973960876,
+        0.7900509238243103,
+        0.7704874277114868,
+        0.2155999094247818,
+        0.20099245011806488,
+        0.15666376054286957
+      ]
+    },
+    {
+      "node_idx": 183181,
+      "isolated": false,
+      "sub_prob": 0.03911348059773445,
+      "n_subgraph_nodes": 2,
+      "n_subgraph_edges": 1,
+      "top_edge_importances": [
+        0.8822495937347412
+      ]
+    },
+    {
+      "node_idx": 174515,
+      "isolated": false,
+      "sub_prob": 0.03419699892401695,
+      "n_subgraph_nodes": 10,
+      "n_subgraph_edges": 9,
+      "top_edge_importances": [
+        0.8727037906646729,
+        0.8515827059745789,
+        0.8219958543777466,
+        0.804266095161438,
+        0.7724499702453613,
+        0.20849144458770752,
+        0.19587695598602295,
+        0.16950084269046783
+      ]
+    },
+    {
+      "node_idx": 196136,
+      "isolated": false,
+      "sub_prob": 0.02837386168539524,
+      "n_subgraph_nodes": 2,
+      "n_subgraph_edges": 1,
+      "top_edge_importances": [
+        0.8766716718673706
+      ]
+    },
+    {
+      "node_idx": 189916,
+      "isolated": false,
+      "sub_prob": 0.023385418578982353,
+      "n_subgraph_nodes": 49,
+      "n_subgraph_edges": 53,
+      "top_edge_importances": [
+        0.8109510540962219,
+        0.7888960838317871,
+        0.7776147723197937,
+        0.7766005992889404,
+        0.7700431942939758,
+        0.2866145968437195,
+        0.2771029770374298,
+        0.2646210193634033
+      ]
+    },
+    {
+      "node_idx": 176073,
+      "isolated": false,
+      "sub_prob": 0.020802034065127373,
+      "n_subgraph_nodes": 2,
+      "n_subgraph_edges": 1,
+      "top_edge_importances": [
+        0.889470636844635
+      ]
+    },
+    {
+      "node_idx": 174527,
+      "isolated": false,
+      "sub_prob": 0.018750010058283806,
+      "n_subgraph_nodes": 2,
+      "n_subgraph_edges": 1,
+      "top_edge_importances": [
+        0.7534394264221191
+      ]
+    },
+    {
+      "node_idx": 203174,
+      "isolated": false,
+      "sub_prob": 0.014654494822025299,
+      "n_subgraph_nodes": 2,
+      "n_subgraph_edges": 1,
+      "top_edge_importances": [
+        0.18107441067695618
+      ]
+    },
+    {
+      "node_idx": 197729,
+      "isolated": false,
+      "sub_prob": 0.01200039405375719,
+      "n_subgraph_nodes": 2,
+      "n_subgraph_edges": 1,
+      "top_edge_importances": [
+        0.8538967370986938
+      ]
+    },
+    {
+      "node_idx": 180826,
+      "isolated": false,
+      "sub_prob": 0.011266142129898071,
+      "n_subgraph_nodes": 2,
+      "n_subgraph_edges": 1,
+      "top_edge_importances": [
+        0.7650172114372253
+      ]
+    },
+    {
+      "node_idx": 197047,
+      "isolated": false,
+      "sub_prob": 0.010880506597459316,
+      "n_subgraph_nodes": 2,
+      "n_subgraph_edges": 1,
+      "top_edge_importances": [
+        0.7883538007736206
+      ]
+    }
+  ],
+  "visualization_pngs": [
+    "reports\\images\\explanations\\node_179187.png",
+    "reports\\images\\explanations\\node_201532.png",
+    "reports\\images\\explanations\\node_199801.png",
+    "reports\\images\\explanations\\node_200582.png",
+    "reports\\images\\explanations\\node_196077.png",
+    "reports\\images\\explanations\\node_175287.png",
+    "reports\\images\\explanations\\node_200938.png",
+    "reports\\images\\explanations\\node_200468.png",
+    "reports\\images\\explanations\\node_199503.png",
+    "reports\\images\\explanations\\node_178922.png",
+    "reports\\images\\explanations\\node_180179.png",
+    "reports\\images\\explanations\\node_199662.png",
+    "reports\\images\\explanations\\node_202511.png",
+    "reports\\images\\explanations\\node_175905.png",
+    "reports\\images\\explanations\\node_202697.png",
+    "reports\\images\\explanations\\node_200725.png",
+    "reports\\images\\explanations\\node_201032.png",
+    "reports\\images\\explanations\\node_190979.png",
+    "reports\\images\\explanations\\node_202742.png",
+    "reports\\images\\explanations\\node_195920.png",
+    "reports\\images\\explanations\\node_195284.png",
+    "reports\\images\\explanations\\node_198853.png",
+    "reports\\images\\explanations\\node_200951.png",
+    "reports\\images\\explanations\\node_178155.png",
+    "reports\\images\\explanations\\node_186137.png",
+    "reports\\images\\explanations\\node_195921.png",
+    "reports\\images\\explanations\\node_175012.png",
+    "reports\\images\\explanations\\node_176446.png",
+    "reports\\images\\explanations\\node_194257.png",
+    "reports\\images\\explanations\\node_178721.png",
+    "reports\\images\\explanations\\node_183181.png",
+    "reports\\images\\explanations\\node_174515.png",
+    "reports\\images\\explanations\\node_196136.png",
+    "reports\\images\\explanations\\node_189916.png",
+    "reports\\images\\explanations\\node_176073.png",
+    "reports\\images\\explanations\\node_174527.png",
+    "reports\\images\\explanations\\node_203174.png",
+    "reports\\images\\explanations\\node_197729.png",
+    "reports\\images\\explanations\\node_180826.png",
+    "reports\\images\\explanations\\node_197047.png"
+  ]
+}

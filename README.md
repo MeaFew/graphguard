@@ -13,6 +13,8 @@
 <img src="https://img.shields.io/badge/code%20style-ruff-000000?logo=ruff&logoColor=white" alt="Ruff">
 <img src="https://img.shields.io/badge/license-MIT-green.svg" alt="License">
 
+**中文** | <a href="./README.en.md">English</a>
+
 </div>
 
 ---
@@ -29,6 +31,12 @@
 | GAT | 0.717 | 0.049 | 🟢 GNN |
 | GIN | 0.707 | 0.049 | 🟢 GNN |
 | XGBoost | 0.702 | 0.045 | 🟡 表格基线 |
+
+> 指标来源：[`reports/metrics.json`](reports/metrics.json) 与 [`reports/model_comparison.csv`](reports/model_comparison.csv)，均使用 timestep 43–49 的同一测试切分。
+
+<p align="center">
+  <img src="reports/images/model_comparison.svg" width="900" alt="GraphGuard GNN 与表格模型公平对比">
+</p>
 
 <details>
 <summary><b>为什么 test 指标看起来低？</b>（点开看时序漂移与方法学说明）</summary>
@@ -63,7 +71,7 @@
 | **规模** | 203,769 笔交易 · 234,355 条边 · 49 个时间步 |
 | **特征** | 168 维（165 匿名 + 3 时间特征） |
 | **类别** | licit 42,019 · illicit 4,545 · unknown 157,205 |
-| **不平衡度** | illicit 仅占已知标签的 ~9.8% |
+| **不平衡度** | illicit 占全部节点约 2.2%，占已知标签约 9.8% |
 
 > 未配置 Kaggle 凭据时，自动 fallback 到合成交易图（相似统计特性），保证流水线可跑通。
 
@@ -163,11 +171,18 @@ flowchart LR
 git clone https://github.com/MeaFew/graphguard.git
 cd graphguard
 
-# 1. 安装依赖（CUDA 12.1 / RTX 4060）
-pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu121
-pip install -r requirements.txt
+# 1. 创建并激活 Python 3.11 虚拟环境
+python -m venv .venv
+# Linux / macOS: source .venv/bin/activate
+# Windows PowerShell: .venv\Scripts\Activate.ps1
 
-# 2. 一键跑通完整流水线
+# 2. 安装依赖与项目包（CUDA 12.1 / RTX 4060）
+make setup
+# Windows 无 GNU Make：python -m pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu121
+#                    python -m pip install -r requirements.txt
+#                    python -m pip install -e ".[dev]"
+
+# 3. 一键跑通完整流水线
 python run_all.py
 
 # 或分步执行
@@ -178,7 +193,7 @@ make evaluate    # 评估与可视化
 make explain     # GNN 可解释性（关键子图 + 聚合统计）
 make test        # 运行测试套件
 
-# 3. 启动对比看板
+# 4. 启动对比看板
 make dashboard
 ```
 
@@ -188,7 +203,7 @@ make dashboard
 
 ```
 graphguard/
-├── scripts/
+├── src/graphguard/
 │   ├── download_data.py        # 下载或生成数据集
 │   ├── build_graph.py          # 构建 PyG Data（仅训练集标准化 + 时间特征）
 │   ├── train_baseline.py       # MLP + XGBoost（仅训练集协议）
@@ -199,9 +214,10 @@ graphguard/
 │   ├── test_graph.py           # 单元测试（含 TestLeakagePrevention）
 │   └── test_explain.py         # Explainer 接入 / TP 选取 / 子图忠实度
 ├── dashboard/app.py            # Streamlit 对比看板
-├── config.py · run_all.py · Makefile
+├── run_all.py · Makefile
 └── reports/
     ├── images/explanations/    # 每个 illicit 节点的解释子图
+    ├── metrics.json · model_comparison.csv
     └── explanation_summary.json
 ```
 
