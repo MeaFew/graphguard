@@ -12,7 +12,6 @@ import xgboost as xgb
 from sklearn.metrics import (
     average_precision_score,
     f1_score,
-    precision_recall_curve,
     precision_score,
     recall_score,
     roc_auc_score,
@@ -29,6 +28,7 @@ from graphguard.config import (
     XGB_MODEL_PATH,
 )
 from graphguard.logging_setup import get_logger, setup_logging
+from graphguard.utils import best_f1_threshold
 
 logger = get_logger(__name__)
 
@@ -41,21 +41,6 @@ def load_data():
     val_mask = data.val_mask.numpy()
     test_mask = data.test_mask.numpy()
     return x, y, train_mask, val_mask, test_mask
-
-
-def best_f1_threshold(probs, labels):
-    """Pick the F1-maximizing decision threshold on a validation split.
-
-    Mirrors scripts/train_gnn.best_f1_threshold. scale_pos_weight / class
-    balancing shifts the predicted-probability distribution away from 0.5, so
-    a hardcoded 0.5 cutoff understates F1. Fall back to 0.5 when the split has
-    no positive label.
-    """
-    if labels.sum() == 0:
-        return 0.5
-    precision, recall, thresholds = precision_recall_curve(labels, probs)
-    f1s = 2 * precision[:-1] * recall[:-1] / (precision[:-1] + recall[:-1] + 1e-12)
-    return float(thresholds[int(np.argmax(f1s))])
 
 
 def evaluate_model(model, x, y, mask, model_name: str, split: str, threshold=None) -> dict:

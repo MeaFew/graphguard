@@ -24,18 +24,18 @@ pip install -r requirements.txt
 
 ## 数据准备
 
-数据通过 `scripts/download_data.py` 获取 [Elliptic Data Set](https://www.kaggle.com/datasets/ellipticco/elliptic-data-set)（Kaggle）。
+数据通过 `python -m graphguard.download_data` 获取 [Elliptic Data Set](https://www.kaggle.com/datasets/ellipticco/elliptic-data-set)（Kaggle）。
 
 ```bash
 # 方式 A：配置 Kaggle 凭证后自动下载
 #   设置 ~/.kaggle/kaggle.json（或环境变量 KAGGLE_USERNAME / KAGGLE_KEY）
-python scripts/download_data.py
+python -m graphguard.download_data
 
 # 方式 B：手动下载三个 CSV 放到 data/raw/
 #   elliptic_txs_features.csv / elliptic_txs_edgelist.csv / elliptic_txs_classes.csv
 ```
 
-若未配置 Kaggle 凭证，`build_graph.py` 会自动回退到 `scripts/generate_synthetic_graph.py`
+若未配置 Kaggle 凭证，`build_graph.py` 会自动回退到 `graphguard.generate_synthetic_graph`
 生成的统计性质相似的合成交易图，便于本地测试与 CI。
 
 ## 开发工作流

@@ -3,8 +3,8 @@
 #
 # Requires Kaggle credentials: either ~/.kaggle/kaggle.json or the
 # KAGGLE_USERNAME / KAGGLE_KEY environment variables. If credentials are not
-# configured, scripts/build_graph.py will fall back to a synthetic transaction
-# graph (scripts/generate_synthetic_graph.py) so the pipeline still runs.
+# configured, graphguard.build_graph will fall back to a synthetic transaction
+# graph (graphguard.generate_synthetic_graph) so the pipeline still runs.
 set -euo pipefail
 DEST_DIR="$(dirname "$0")"
 cd "${DEST_DIR}"
@@ -16,6 +16,6 @@ if [ -f data/raw/elliptic_txs_features.csv ]; then
 fi
 
 echo "Downloading Elliptic Data Set from Kaggle ..."
-python scripts/download_data.py
+python -m graphguard.download_data
 
-echo "Done. Run 'python scripts/build_graph.py --force' to build the graph."
+echo "Done. Run 'python -m graphguard.build_graph --force' to build the graph."

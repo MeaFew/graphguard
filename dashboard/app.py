@@ -39,7 +39,7 @@ if COMPARISON_CSV.exists():
     )
     st.plotly_chart(fig, use_container_width=True)
 else:
-    st.warning("No comparison CSV found. Run `python scripts/evaluate.py` first.")
+    st.warning("No comparison CSV found. Run `python -m graphguard.evaluate` first.")
 
 # ── ROC curve image ───────────────────────────────────────────────
 st.header("ROC Curves")

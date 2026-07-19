@@ -34,7 +34,7 @@ explain:
 
 # ── Quality gates ─────────────────────────────────────────────────
 test:
-	$(PYTHON) -m pytest tests/ -q --cov=graphguard --cov-report=term-missing --cov-fail-under=15
+	$(PYTHON) -m pytest tests/ -q --cov=graphguard --cov-report=term-missing --cov-fail-under=30
 
 typecheck:
 	mypy src/graphguard
@@ -57,7 +57,7 @@ dashboard:
 
 # ── Utilities ─────────────────────────────────────────────────────
 clean:
-	find . -type d -name "__pycache__" -exec rm -rf {} + 2>/dev/null || true
-	find . -type f -name "*.pyc" -delete 2>/dev/null || true
-	find . -type d -name ".pytest_cache" -exec rm -rf {} + 2>/dev/null || true
-	find . -type d -name ".ruff_cache" -exec rm -rf {} + 2>/dev/null || true
+	$(PYTHON) -c "import shutil, pathlib; [shutil.rmtree(p) for p in pathlib.Path('.').rglob('__pycache__') if p.is_dir()]"
+	$(PYTHON) -c "import pathlib; [p.unlink() for p in pathlib.Path('.').rglob('*.pyc')]"
+	$(PYTHON) -c "import shutil, pathlib; [shutil.rmtree(p) for p in pathlib.Path('.').rglob('.pytest_cache') if p.is_dir()]"
+	$(PYTHON) -c "import shutil, pathlib; [shutil.rmtree(p) for p in pathlib.Path('.').rglob('.ruff_cache') if p.is_dir()]"

@@ -43,6 +43,7 @@ Thumbs.db
 # Patterns are unrooted so they match data/models/reports no matter where they
 # live (repo root OR src/graphguard/). This prevents accidentally committing
 # generated artifacts under the package tree.
+src/graphguard/data/
 **/data/raw/*.csv
 **/data/processed/*.pt
 **/data/processed/*.pkl
