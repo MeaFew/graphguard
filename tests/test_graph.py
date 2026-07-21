@@ -1,7 +1,6 @@
 """Unit tests for graph construction and model forward passes."""
 
 import sys
-from pathlib import Path
 
 import numpy as np
 import pytest
@@ -12,7 +11,9 @@ from graphguard.train_gnn import GAT, GCN, GIN, GraphSAGE
 
 
 def test_graph_data_exists():
-    assert GRAPH_DATA_PT.exists(), f"{GRAPH_DATA_PT} not found; run scripts/build_graph.py first"
+    assert GRAPH_DATA_PT.exists(), (
+        f"{GRAPH_DATA_PT} not found; run `python -m graphguard.build_graph` first"
+    )
 
 
 def test_graph_properties():
@@ -73,7 +74,7 @@ def test_gin_forward():
 
 class TestLeakagePrevention:
     """Regression tests for the leakage fixes (H1 scaler-on-train-only,
-    H2 time-causal subgraphs, H3 MLP protocol)."""
+    H2 split edge-filtered subgraphs, H3 MLP protocol)."""
 
     def test_scaler_fit_on_train_only(self):
         """H1: the feature scaler must be fit on TRAIN rows only, so that
@@ -115,16 +116,38 @@ class TestLeakagePrevention:
             "subgraph equals the full graph (H2 not applied)."
         )
 
-    def test_mlp_trains_on_train_mask_only(self):
+    def test_mlp_trains_on_train_mask_only(self, monkeypatch):
         """H3: train_baseline.train_mlp must fit on train_mask (not train|val).
-        Read the source and assert the fit call uses only train_mask — this is
-        a static guard against re-introducing the unfair protocol that gave the
-        MLP an edge over XGBoost."""
-        src = Path(__file__).resolve().parent.parent / "src" / "graphguard" / "train_baseline.py"
-        text = src.read_text(encoding="utf-8")
-        # The MLP fit call must NOT include val_mask in its indexing.
-        assert "train_mask | val_mask" not in text, (
-            "train_baseline.py still fits the MLP on train|val (H3 leak)."
+        Behavioral guard: spy on MLPClassifier.fit and assert it received
+        exactly the train rows — re-introducing a train|val fit would change
+        the row count and fail this test."""
+        import graphguard.train_baseline as tb
+
+        captured = {}
+
+        class _SpyMLP:
+            def __init__(self, **kwargs):
+                pass
+
+            def fit(self, x, y):
+                captured["n_rows"] = len(x)
+
+        monkeypatch.setattr(tb, "MLPClassifier", _SpyMLP)
+        monkeypatch.setattr(tb.joblib, "dump", lambda *args, **kwargs: None)
+
+        rng = np.random.RandomState(0)
+        n = 100
+        x = rng.rand(n, 5).astype(np.float32)
+        y = np.zeros(n, dtype=np.int64)
+        y[::10] = 1
+        train_mask = np.zeros(n, dtype=bool)
+        train_mask[:70] = True
+
+        tb.train_mlp(x, y, train_mask)
+
+        assert captured["n_rows"] == int(train_mask.sum()) == 70, (
+            "train_mlp did not fit on exactly the train_mask rows "
+            "(H3 leak: fitting on train|val would pass more rows)."
         )
 
 

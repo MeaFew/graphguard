@@ -2,20 +2,21 @@
 
 All models use NeighborLoader mini-batches to stay within 8GB VRAM.
 
-Leakage fix (vs. an earlier version): training NeighborLoader now passes a TIME
-attribute so a train root node only aggregates features from neighbors at an
-EQUAL OR EARLIER timestep. Previously sampling ran over the full graph, so a
-training node's representation incorporated val/test-timestep node features —
-a transductive leak that both inflated GNN training metrics and made the
-"MLP beats GNN" comparison unfair (the GNN was fed drifting future-neighbor
-features at train time). Time-causal sampling gives the GNNs a fair, inductive
-regime and is where GraphSAGE/GIN's inductive strength should show.
+Leakage fix (vs. an earlier version): training/eval NeighborLoaders now run on
+per-split EDGE-FILTERED subgraphs that keep only edges whose BOTH endpoints
+have time_step <= the split's max timestep, so a root node can never aggregate
+features from nodes of a LATER split. Previously sampling ran over the full
+graph, so a training node's representation incorporated val/test-timestep node
+features — a transductive leak that both inflated GNN training metrics and
+made the "MLP beats GNN" comparison unfair (the GNN was fed drifting
+future-neighbor features at train time). Note this prevents CROSS-SPLIT
+leakage only: unlike a temporal NeighborLoader, it does not enforce per-edge
+time ordering (ts_src <= ts_dst), so within a split a root may still aggregate
+from same-split neighbors at later timesteps.
 """
 
 import argparse
 import json
-import sys
-from pathlib import Path
 
 import numpy as np
 import torch
@@ -133,10 +134,12 @@ class GIN(torch.nn.Module):
     neighborhoods — relevant for fraud-ring structure. Each conv wraps an MLP
     rather than a linear transform.
 
-    This does NOT inherit from ``GNNModel``: ``GNNModel.__init__`` would build
-    placeholder SAGEConv layers that GIN immediately discards. Instead we build
-    the GIN convs directly and reuse ``GNNModel.forward`` via explicit attribute
-    parity (conv1/conv2/classifier/dropout/_act), avoiding the wasted work.
+    This does NOT inherit from ``GNNModel``: ``GNNModel.__init__`` builds its
+    conv layers as ``conv_cls(in_channels, out_channels, **kwargs)``, but
+    ``GINConv`` takes a wrapped MLP instead of plain channel counts, so the
+    shared constructor cannot express it. Instead we build the GIN convs
+    directly and keep attribute parity with ``GNNModel.forward``
+    (conv1/conv2/classifier/dropout/_act).
     """
 
     def __init__(self, in_channels: int, hidden_channels: int, dropout: float):
@@ -157,8 +160,9 @@ class GIN(torch.nn.Module):
         self.dropout = dropout
         self._act = F.relu
 
-    # Same forward as GNNModel — kept here rather than inherited so GIN's init
-    # can build its own conv layers without GNNModel's SAGEConv placeholders.
+    # Same forward as GNNModel — duplicated (not inherited) because GINConv's
+    # MLP-wrapped constructor doesn't fit GNNModel.__init__'s
+    # conv_cls(in, out) protocol; the forward logic itself is identical.
     def forward(self, x, edge_index):
         x = self._act(self.conv1(x, edge_index))
         x = F.dropout(x, p=self.dropout, training=self.training)
@@ -232,14 +236,14 @@ def train(model_name: str, force: bool = False):
         )
         return
 
-    device = torch.device(DEVICE if torch.cuda.is_available() else "cpu")
+    device = torch.device(DEVICE)
     logger.info(f"Using device: {device}")
 
     data = torch.load(GRAPH_DATA_PT, weights_only=True)
     # Keep data on CPU; NeighborLoader copies sampled subgraphs to the device.
 
-    # TIME-CAUSAL sampling (leakage fix): earlier NeighborLoader sampling ran
-    # over the FULL graph, so a train root's representation absorbed
+    # CROSS-SPLIT edge filtering (leakage fix): earlier NeighborLoader sampling
+    # ran over the FULL graph, so a train root's representation absorbed
     # val/test-timestep node features — a transductive leak. We instead build a
     # per-split EDGE-FILTERED subgraph: a split's subgraph keeps only edges
     # whose BOTH endpoints have time_step <= the split's max timestep.
@@ -247,12 +251,14 @@ def train(model_name: str, force: bool = False):
     #     reach val/test nodes at all.
     #   val subgraph:   edges among nodes with ts <= 42  -> val roots see train
     #     + earlier val, never test.
-    #   test subgraph:  full graph (ts <= 49)            -> test roots see all
-    #     up to their own timestep (they are the latest).
-    # This enforces the same time-causal constraint as PyG's temporal
-    # NeighborLoader but uses plain NeighborLoader (no pyg-lib / disjoint-
-    # sampling dependency). Node indices are unchanged across subgraphs so
-    # masks/labels stay aligned.
+    #   test subgraph:  full graph (ts <= 49)            -> test roots can reach
+    #     every node, including later timesteps of their own split.
+    # This prevents CROSS-SPLIT leakage only: unlike PyG's temporal
+    # NeighborLoader, it does NOT enforce per-edge time ordering
+    # (ts_src <= ts_dst), so within a split a root may still aggregate from
+    # same-split neighbors at later timesteps. It uses plain NeighborLoader
+    # (no pyg-lib / disjoint-sampling dependency). Node indices are unchanged
+    # across subgraphs so masks/labels stay aligned.
     ts = data.time_step
     ei = data.edge_index
     ts_src = ts[ei[0]]

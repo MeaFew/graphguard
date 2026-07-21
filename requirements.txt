@@ -23,7 +23,9 @@ matplotlib>=3.7.0
 seaborn>=0.12.0
 
 # Dashboard
-streamlit>=1.28.0
+# Lower bound 1.43: dashboard/app.py uses width="stretch" (the replacement for
+# use_container_width), which older releases don't support.
+streamlit>=1.43.0
 plotly>=5.18.0
 
 # Data download (download_data.py imports kagglehub; without it the script
@@ -36,6 +38,5 @@ tqdm>=4.65.0
 joblib>=1.3.0
 networkx>=3.0
 
-# Development
-pytest>=7.4.0
-ruff>=0.1.0
+# Development tools (pytest/ruff/mypy/pre-commit) are declared in
+# pyproject.toml's "dev" extra — install with: pip install -e ".[dev]"

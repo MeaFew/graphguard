@@ -25,8 +25,6 @@
 
 import argparse
 import json
-import sys
-from pathlib import Path
 
 import matplotlib
 
@@ -517,7 +515,7 @@ def main():
     )
     args = parser.parse_args()
 
-    device = torch.device(config.DEVICE if torch.cuda.is_available() else "cpu")
+    device = torch.device(config.DEVICE)
     logger.info(f"Using device: {device}")
 
     OUT_DIR.mkdir(parents=True, exist_ok=True)
@@ -562,13 +560,13 @@ def main():
     # ---- 4) 聚合分析 ----
     logger.info("\n聚合分析...")
     agg = aggregate_analysis(results, data, probs)
-    logger.info("  关键邻居标签加权占比:", agg["neighbor_label_weighted_share"])
-    logger.info("  关键邻居标签计数:", agg["neighbor_label_counts"])
+    logger.info(f"  关键邻居标签加权占比: {agg['neighbor_label_weighted_share']}")
+    logger.info(f"  关键邻居标签计数: {agg['neighbor_label_counts']}")
     logger.info(f"  无入边（纯特征）节点: {agg['n_isolated_feature_only']}/{agg['n_explained']}")
     if agg["top_global_feature_dims"]:
         logger.info(
-            "  全局 top-5 重要特征维度:",
-            [(d["feature_dim"], d["importance"]) for d in agg["top_global_feature_dims"][:5]],
+            f"  全局 top-5 重要特征维度: "
+            f"{[(d['feature_dim'], d['importance']) for d in agg['top_global_feature_dims'][:5]]}"
         )
 
     # ---- 5) 写 summary ----

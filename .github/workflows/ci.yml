@@ -44,7 +44,7 @@ jobs:
           python -m graphguard.download_data
           python -m graphguard.build_graph
       - name: Run tests with coverage
-        run: pytest tests/ -v --tb=short --cov=graphguard --cov-report=term-missing --cov-fail-under=15
+        run: pytest tests/ -v --tb=short --cov=graphguard --cov-report=term-missing --cov-fail-under=30
 
   typecheck:
     # Gradual typing: mypy reports but does not block CI yet.

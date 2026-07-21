@@ -35,7 +35,7 @@ python -m graphguard.download_data
 #   elliptic_txs_features.csv / elliptic_txs_edgelist.csv / elliptic_txs_classes.csv
 ```
 
-若未配置 Kaggle 凭证，`build_graph.py` 会自动回退到 `graphguard.generate_synthetic_graph`
+若未配置 Kaggle 凭证，`download_data.py` 会自动回退到 `graphguard.generate_synthetic_graph`
 生成的统计性质相似的合成交易图，便于本地测试与 CI。
 
 ## 开发工作流
@@ -53,7 +53,7 @@ make verify   # lint (ruff) + test (pytest)  — 提交前确保全绿
 图反欺诈极易引入传导式（transductive）泄漏。本项目的约定：
 
 1. **特征标准化只在训练节点上 fit**（`build_graph.py`：`StandardScaler().fit(x[train_mask])`），不得用全图统计。
-2. **GNN 采样使用时间因果子图**（`train_gnn.py`：每个 split 的子图只保留两端 timestep ≤ 该 split 上限的边），训练根节点不得聚合 val/test timestep 的节点特征。
+2. **GNN 采样使用按 split 过滤边的子图**（`train_gnn.py`：每个 split 的子图只保留两端 timestep ≤ 该 split 上限的边），训练根节点不得聚合 val/test timestep 的节点特征。注意该过滤只防**跨 split** 泄漏，并未逐边强制 `ts_src ≤ ts_dst`（同 split 内根节点仍可能聚合到更晚时间步的邻居）。
 3. **baseline 与 GNN 训练协议一致**（MLP/XGBoost 都只在 `train_mask` 上训练）。
 
 任何改动若涉及上述任一点，必须在 `tests/test_graph.py::TestLeakagePrevention` 中保留或增强对应的回归测试。

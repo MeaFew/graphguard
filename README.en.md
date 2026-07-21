@@ -53,7 +53,7 @@ Fraud is often a coordinated network behavior, but a stronger graph model is not
 ## Leakage-safe protocol
 
 1. **Non-overlapping temporal split:** train 1–34, validation 35–42, test 43–49.
-2. **Causal split subgraphs:** training root nodes cannot aggregate validation or test node features.
+2. **Split edge-filtered subgraphs:** training root nodes cannot aggregate validation or test node features (cross-split leakage prevention; per-edge time ordering within a split is not enforced).
 3. **Train-only scaling:** `StandardScaler` is fitted on training nodes and then applied to later splits.
 4. **Validation-only thresholding:** the F1 threshold is selected on validation PR curves and frozen for test.
 

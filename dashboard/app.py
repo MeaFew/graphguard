@@ -1,8 +1,6 @@
 """Streamlit dashboard for GraphGuard model comparison."""
 
 import json
-import sys
-from pathlib import Path
 
 import pandas as pd
 import plotly.express as px

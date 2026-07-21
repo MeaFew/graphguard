@@ -2,8 +2,6 @@
 
 import argparse
 import json
-import sys
-from pathlib import Path
 
 import joblib
 import numpy as np
@@ -70,7 +68,7 @@ def evaluate_model(model, x, y, mask, model_name: str, split: str, threshold=Non
     }
 
 
-def train_mlp(x, y, train_mask, val_mask):
+def train_mlp(x, y, train_mask):
     logger.info("Training MLP baseline...")
     MODELS_DIR.mkdir(parents=True, exist_ok=True)
 
@@ -140,7 +138,7 @@ def train_both(force: bool = False):
 
     metrics = []
 
-    mlp = train_mlp(x, y, train_mask, val_mask)
+    mlp = train_mlp(x, y, train_mask)
     # Tune the F1 cutoff on the VALIDATION split (time-causally disjoint from
     # test) and apply that single threshold to the test predictions — never
     # tune the threshold on test, that would leak test labels. Earlier code

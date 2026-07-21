@@ -23,8 +23,6 @@ from torch_geometric.explain import Explainer, GNNExplainer
 from torch_geometric.nn import SAGEConv
 
 import graphguard.config as config  # noqa: E402  — must register safe globals before any weights_only load
-
-# 让测试也能 import scripts 下的模块
 from graphguard.explain_gnn import select_tp_nodes, subgraph_prob  # noqa: E402
 
 
@@ -70,7 +68,7 @@ def _make_toy_graph(seed: int = 0) -> tuple[Data, torch.nn.Module]:
 
 
 def _build_explainer(model) -> Explainer:
-    """与 scripts/explain_gnn.build_explainer 等价的 Explainer 构造。"""
+    """与 graphguard.explain_gnn.build_explainer 等价的 Explainer 构造。"""
     return Explainer(
         model=model,
         algorithm=GNNExplainer(epochs=30, lr=0.01),

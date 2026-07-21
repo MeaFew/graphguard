@@ -2,8 +2,6 @@
 
 import argparse
 import json
-import sys
-from pathlib import Path
 
 import numpy as np
 import pandas as pd
@@ -116,7 +114,12 @@ def build_graph(force: bool = False):
     ts_norm = (ts - float(min(TRAIN_TIME_STEPS))) / max(
         1.0, float(max(TEST_TIME_STEPS) - min(TRAIN_TIME_STEPS))
     )
-    period = float(len(TEST_TIME_STEPS))  # one full cycle across the dataset
+    # NOTE: period is len(TEST_TIME_STEPS) (=7), so the sin/cos cycle repeats
+    # ~7x across the 49-step dataset — it is NOT "one full cycle across the
+    # dataset". This value produced the published metrics; changing it alters
+    # the input features and would require re-running every reported number,
+    # so it is kept as-is deliberately.
+    period = float(len(TEST_TIME_STEPS))
     ts_sin = np.sin(2 * np.pi * ts / period).astype(np.float32)
     ts_cos = np.cos(2 * np.pi * ts / period).astype(np.float32)
     x = np.column_stack([x, ts_norm[:, None], ts_sin[:, None], ts_cos[:, None]])

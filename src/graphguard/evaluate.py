@@ -2,7 +2,6 @@
 
 import argparse
 import json
-import sys
 from pathlib import Path
 
 import joblib
@@ -89,11 +88,14 @@ def evaluate_gnn(data, model_class, model_path, device, model_name: str):
     model.load_state_dict(torch.load(model_path, weights_only=True, map_location=device))
     model.eval()
 
-    # Time-causal test loader: the test split is the LATEST block, so its
+    # Cross-split leakage fix: the test split is the LATEST block, so its
     # subgraph (edges with both endpoints <= the global max timestep) equals
-    # the full graph — test roots can only ever look backward in time anyway.
-    # Using the full graph here is therefore leakage-free for the test split,
-    # while the train/val loaders in train_gnn.py use trimmed subgraphs.
+    # the full graph, and no node from a later split exists to leak from. The
+    # edge filter only prevents CROSS-SPLIT leakage (a root never aggregates
+    # features from a later split); it does NOT enforce per-edge time ordering
+    # (ts_src <= ts_dst), so a test root can still reach same-split neighbors
+    # at later timesteps. Train/val loaders in train_gnn.py use trimmed
+    # subgraphs.
     test_loader = NeighborLoader(
         data,
         num_neighbors=NUM_NEIGHBORS,

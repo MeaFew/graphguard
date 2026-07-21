@@ -57,7 +57,7 @@
 ## 项目亮点
 
 - **证明 GNN 的价值需要先修复泄漏**：早期"MLP 击败 GNN"是三处泄漏造成的不公平对比假象（详见下文）。修复后 GraphSAGE 才真正胜出——这个发现本身就是项目最有价值的部分
-- **时序防泄漏工程**：时间步不重叠切分 + 时间因果子图采样 + 仅训练集 fit 的特征标准化，三层防护确保 GNN 是真归纳而非转导泄漏
+- **时序防泄漏工程**：时间步不重叠切分 + 按 split 过滤边的子图采样（防跨 split 泄漏）+ 仅训练集 fit 的特征标准化，三层防护确保 GNN 是真归纳而非转导泄漏
 - **GNN 可解释性**：用 GNNExplainer 输出"为什么这笔交易被判欺诈"的关键子图，把黑箱预测变成可审计的合规依据——金融方向作品集的稀缺深度点
 - **诚实的方法学**：AP=0.062、模型在测试集欠自信、一半节点纯特征驱动——局限全部如实记录，不硬编故事
 
@@ -207,7 +207,7 @@ graphguard/
 │   ├── download_data.py        # 下载或生成数据集
 │   ├── build_graph.py          # 构建 PyG Data（仅训练集标准化 + 时间特征）
 │   ├── train_baseline.py       # MLP + XGBoost（仅训练集协议）
-│   ├── train_gnn.py            # GCN / SAGE / GAT / GIN（时间因果子图）
+│   ├── train_gnn.py            # GCN / SAGE / GAT / GIN（split 边过滤子图）
 │   ├── evaluate.py             # 指标与可视化
 │   └── explain_gnn.py          # GNN 可解释性（GNNExplainer）
 ├── tests/
@@ -226,7 +226,7 @@ graphguard/
 ## 关键设计决策
 
 1. **时序切分**：train/val/test 用不重叠时间步（1-34 / 35-42 / 43-49），标签绝不前向泄漏
-2. **时间因果子图**：每个 split 的 NeighborLoader 跑在边过滤子图上，训练根节点触达不了 val/test 节点特征
+2. **按 split 过滤边的子图**：每个 split 的 NeighborLoader 跑在边过滤子图上（只保留两端 `time_step ≤ split 上限` 的边），训练根节点触达不了 val/test 节点特征。注意这只防**跨 split** 泄漏，并未逐边强制 `ts_src ≤ ts_dst`——同 split 内根节点仍可能聚合到更晚时间步的邻居
 3. **仅训练集标准化**：StandardScaler 在 train 节点 fit 后应用到全部
 4. **val 调优的 F1 阈值**：决策阈值在验证集 PR 曲线上调优，再用于测试集——绝不在测试集上调
 5. **归纳能力**：GraphSAGE / GIN 能泛化到训练时未见过的节点——在公平协议下 GraphSAGE 胜出

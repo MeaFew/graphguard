@@ -10,6 +10,6 @@ Exploratory and visualization notebooks for the graphguard project.
 - **02_gnn_interpretation.ipynb** — inspect learned GNN embeddings (t-SNE),
   attention weights (for GAT), and per-time-step AUC drift.
 
-The training/evaluation logic lives in `../scripts/` (`train_gnn.py`,
+The training/evaluation logic lives in `../src/graphguard/` (`train_gnn.py`,
 `train_baseline.py`, `evaluate.py`); notebooks are for interactive exploration
 of inputs and outputs only.
